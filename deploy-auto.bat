@@ -47,6 +47,32 @@ if errorlevel 1 (
   goto :finalBlock
 )
 
+rem ===== Identidade Git =====
+for /f "usebackq tokens=* delims=" %%x in (`git config --get user.name 2^>nul`) do set GIT_UN=%%x
+for /f "usebackq tokens=* delims=" %%x in (`git config --get user.email 2^>nul`) do set GIT_UE=%%x
+if not defined GIT_UN for /f "usebackq tokens=* delims=" %%x in (`git config --global --get user.name 2^>nul`) do set GIT_UN=%%x
+if not defined GIT_UE for /f "usebackq tokens=* delims=" %%x in (`git config --global --get user.email 2^>nul`) do set GIT_UE=%%x
+if not defined GIT_UN (
+  call :echoError "[ERRO] Identidade Git (user.name) nao configurada."
+  call :echoFix "[CORRECAO] git config --global user.name \"Seu Nome\""
+)
+if not defined GIT_UE (
+  call :echoError "[ERRO] Identidade Git (user.email) nao configurada."
+  call :echoFix "[CORRECAO] git config --global user.email \"seu@email\""
+)
+if not defined GIT_UN if not defined GIT_UE (
+  set CLASS=FIXABLE_FAILURE
+  goto :finalBlock
+)
+rem ===== CRLF =====
+for /f "usebackq tokens=* delims=" %%x in (`git config --get core.autocrlf 2^>nul`) do set CORE_AUTOCRLF=%%x
+if not defined CORE_AUTOCRLF (
+  call :echoWarn "[ATENCAO] Git core.autocrlf nao configurado."
+  call :echoFix "[CORRECAO] Windows recomendado: git config --global core.autocrlf true"
+  call :echoFix "[CORRECAO] Linux/macOS recomendado: git config --global core.autocrlf input"
+) else (
+  call :echoInfo "[INFO] core.autocrlf: !CORE_AUTOCRLF!"
+)
 rem ===== Remoto e branch =====
 for /f "usebackq tokens=*" %%r in (`git remote get-url origin 2^>nul`) do set ORIGIN_URL=%%r
 if not defined ORIGIN_URL (
@@ -194,7 +220,12 @@ if /I "%CLASS%"=="CRITICAL_ERROR" (
 call :sep
 if defined CP_CHANGED chcp %OLDCP% >nul
 powershell -NoProfile -Command "Write-Host ' ' ; Write-Host '[Pressione Enter para continuar...]' -ForegroundColor White ; Read-Host" 
-exit /b 0
+set "EXITCODE=0"
+if /I "%CLASS%"=="SUCCESS" set "EXITCODE=0"
+if /I "%CLASS%"=="NO_CHANGES" set "EXITCODE=0"
+if /I "%CLASS%"=="FIXABLE_FAILURE" set "EXITCODE=1"
+if /I "%CLASS%"=="CRITICAL_ERROR" set "EXITCODE=2"
+exit /b %EXITCODE%
 
 rem ===== Utilidades de UI =====
 :sep

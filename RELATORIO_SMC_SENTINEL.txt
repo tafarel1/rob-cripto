@@ -1,0 +1,243 @@
+================================================================================
+RELATORIO SMC_SENTINEL
+================================================================================
+
+1) METADADOS DO RELATORIO
+--------------------------------------------------------------------------------
+- Data/Hora de geracao: 2025-10-20 11:48:04
+- Nome do projeto: smc_sentinel
+- Localizacao: C:\Users\tafarel.brito\smc_sentinel\
+- Repositorio GitHub: https://github.com/tafarel1/rob-cripto.git
+
+
+2) SECAO DE ARQUITETURA
+--------------------------------------------------------------------------------
+A) Estrutura de diretorios (completa)
+
+c:\Users\tafarel.brito\smc_sentinel
+├── .gitignore
+├── corrigir-staging.bat
+├── deploy-auto.bat
+├── deploy.ps1
+├── pytest.ini
+├── requirements.txt
+├── scripts\
+│   ├── bootstrap.ps1
+│   ├── deploy-dev-min.ps1
+│   ├── deploy-dev.ps1
+│   ├── deploy-env-min.ps1
+│   ├── deploy-env.ps1
+│   ├── deploy-prod-min.ps1
+│   ├── deploy-prod.ps1
+│   ├── deploy-runner.ps1
+│   ├── deploy-staging-min.ps1
+│   ├── deploy-staging.ps1
+│   ├── deploy-status.ps1
+│   ├── deploy-test-min.ps1
+│   ├── deploy-test.ps1
+│   ├── register_scheduled_task.ps1
+│   ├── register_service_nssm.ps1
+│   ├── run.ps1
+│   ├── unregister_scheduled_task.ps1
+│   └── unregister_service_nssm.ps1
+├── smc_sentinel\
+│   ├── __init__.py
+│   ├── clients\
+│   │   ├── __init__.py
+│   │   ├── base.py
+│   │   ├── binance.py
+│   │   └── coinbase.py
+│   ├── infra\
+│   │   ├── __init__.py
+│   │   ├── collector.py
+│   │   ├── config.py
+│   │   ├── errors.py
+│   │   ├── rate_limiter.py
+│   │   ├── retry.py
+│   │   └── sinks.py
+│   ├── run_collector.py
+│   └── tests\
+│       ├── test_collector.py
+│       ├── test_config_sinks.py
+│       ├── test_rate_limiter_blocking.py
+│       └── test_retry_backoff.py
+├── ssh-empty.conf
+└── tests\
+    ├── test_baseclient.py
+    └── test_rate_limiter.py
+
+B) Stack tecnologico
+- Linguagem: Python 3.x (assinc. com asyncio)
+- Bibliotecas: httpx, websockets, ccxt, pydantic, loguru, pytest, python-dotenv, tenacity
+- Scripts: PowerShell (Windows), Batch (.bat)
+- Deploy: Windows Service via NSSM e/ou Tarefa Agendada
+- VCS: Git (branch principal: main)
+
+C) Padroes de desenvolvimento
+- I/O assinc. para coletores e clientes
+- Separacao de responsabilidades: infra (rate limit, retry, sinks, config) e clients (Binance/Coinbase)
+- Protocolos/abstracoes: EventSink, BaseClient
+- Logging estruturado com niveis configuraveis
+- Resiliencia: retry com backoff exponencial; limitacao de taxa com TokenBucket
+- Configuracao via variaveis de ambiente (.env)
+
+D) Fluxo de trabalho
+- run_collector.py orquestra ingestao de eventos de exchanges
+- Clientes (BinanceClient/CoinbaseClient) utilizam RateLimiter + retry para chamadas
+- Eventos persistidos em sinks (Console ou JSONL com rotacao)
+- Estatisticas periodicas via intervalo configuravel (SMC_STATS_INTERVAL)
+- Deploy automatizado com commit/push usando scripts PowerShell/Batch
+
+
+3) INVENTARIO TECNICO
+--------------------------------------------------------------------------------
+A) Arquivos principais e funcoes
+- smc_sentinel/infra/config.py: Settings, from_env
+- smc_sentinel/infra/collector.py: pipeline de coleta, orquestracao, integracao de sinks
+- smc_sentinel/infra/rate_limiter.py: TokenBucket, RateLimiter
+- smc_sentinel/infra/retry.py: compute_backoff, retry_with_backoff
+- smc_sentinel/infra/sinks.py: EventSink, ConsoleSink, JSONLinesSink
+- smc_sentinel/clients/base.py: BaseClient (contratos comuns)
+- smc_sentinel/clients/binance.py: BinanceClient (rate limit + retry + parsing de eventos)
+- smc_sentinel/clients/coinbase.py: CoinbaseClient (integ. REST/WebSocket conforme disponivel)
+- smc_sentinel/run_collector.py: setup de sinks, execucao, estatisticas, encerramento
+
+B) Scripts de automacao
+- deploy.ps1: fluxo git, checagens, saida padronizada por classificacao final
+- deploy-auto.bat: staging/commit/push automatico com tratamento de erros
+- scripts/deploy-runner.ps1: instala/atualiza/coordenada servico NSSM ou Tarefa Agendada
+- scripts/register_service_nssm.ps1 / unregister_service_nssm.ps1
+- scripts/register_scheduled_task.ps1 / unregister_scheduled_task.ps1
+- corrigir-staging.bat: auxilia correcao em repositorios (ajustes de staging)
+
+C) Configuracoes do Git
+- .gitignore: regras de exclusao de artefatos
+- deploy.ps1 e deploy-auto.bat: 
+  - definem/remoto origin
+  - garantem branch principal
+  - criam commit "Deploy automatico: <timestamp>"
+  - checam identidade Git (user.name/email)
+  - recomendam core.autocrlf para consistencia CRLF
+
+D) Dependencias (requirements.txt)
+- httpx
+- websockets
+- ccxt
+- pydantic
+- loguru
+- pytest
+- python-dotenv
+- tenacity
+
+
+4) SISTEMA DE DEPLOY
+--------------------------------------------------------------------------------
+A) Analise dos scripts
+- deploy-runner.ps1: 
+  - instala/atualiza desinstala o coletor como Servico (NSSM) ou Tarefa Agendada
+  - parametrizacao por ambiente (dev/staging/prod/test)
+  - logs e tratamento de erros
+- wrappers (deploy-*.ps1): 
+  - configuram ambiente e invocam deploy-runner com flags apropriadas
+- deploy.ps1 / deploy-auto.bat:
+  - checam repo, remoto, branch, identidade, CRLF, staging
+  - criam commit/push e reportam estado final
+
+B) Sistema de correcao automatica
+- Remocao automatica de 'NUL' do index quando detectado (deploy-auto.bat)
+- Mensagens explicitas de correcao (Fix) com passos a seguir
+
+C) Fluxo CI/CD simplificado
+- Gatilhado por execucao local dos scripts de deploy
+- Commit/push imediatos para sincronizacao com GitHub
+
+D) Tratamento de erros
+- Classificacao: SUCCESS, NO_CHANGES, FIXABLE_FAILURE, CRITICAL_ERROR
+- Codigos de saida padronizados: 0, 0, 1, 2 respectivamente
+- Orientacoes detalhadas para correcao e reexecucao
+
+
+5) METRICAS DO PROJETO
+--------------------------------------------------------------------------------
+- Quantidade de commits: 4
+- Arquivos do projeto: 44
+- Linhas de codigo (LOC): 2.914
+- Deploys realizados: 2
+- Timeline dos ultimos deploys automaticos (indicativo):
+  - Deploy automatico: <timestamp 1>
+  - Deploy automatico: <timestamp 2>
+  (Observacao: mensagens de commit seguem o padrao "Deploy automatico: yyyy-MM-dd HH:mm:ss")
+
+
+6) IMPLEMENTACOES TECNICAS
+--------------------------------------------------------------------------------
+- Encoding ASCII-safe: 
+  - Batch ajusta pagina de codigo para 1252 e restaura ao final
+  - PowerShell ajusta OutputEncoding conforme necessario
+- Permissoes Windows: 
+  - instrucoes para executar scripts com privilegios quando bloqueios
+- Integracao GitHub: 
+  - remoto 'origin' configurado automaticamente
+  - commit/push com feedback de sucesso
+- Performance e resiliencia: 
+  - RateLimiter (TokenBucket) para controlar throughput
+  - retry com backoff exponencial via tenacity/padroes locais
+  - I/O assinc., uso de websockets/httpx e sinks com escrita eficiente
+
+
+7) RECOMENDACOES E ROADMAP
+--------------------------------------------------------------------------------
+A) Melhorias imediatas (aplicadas)
+- Checagem proativa de identidade Git (user.name/email) nos scripts
+- Avisos e recomendacoes para core.autocrlf
+- Padronizacao dos codigos de saida em deploy.ps1 e deploy-auto.bat
+- Criacao/atualizacao do .env.example com variaveis do Settings
+
+B) Funcionalidades futuras
+- Observabilidade (métricas Prometheus, logs estruturados em arquivo rotacionado)
+- Persistencia adicional (parquet/CSV e integracao com data lake)
+- Empacotamento (Docker) e pipeline CI no GitHub Actions
+- Tuning de RateLimiter por endpoint/cliente
+- Testes de integracao com exchanges em modo sandbox
+
+C) Expansao do projeto
+- Suporte a novas exchanges
+- Enriquecimento de eventos (metadados e correlacao)
+- Mecanismos de backpressure e fila (ex.: RabbitMQ ou SQS)
+
+D) Recomendacoes especificas
+- Padronizar configuracao de ambiente via .env e documentacao
+- Adicionar validacao forte dos envs com Pydantic Settings
+- Introduzir flag -DryRun nos scripts de deploy
+- Travas contra commits vazios e hooks opcionais
+
+
+8) CHECKLISTS OPERACIONAIS
+--------------------------------------------------------------------------------
+A) Checklist de deploy
+- git status limpo?
+- identidade Git configurada?
+- core.autocrlf configurado?
+- arquivos alterados e staged?
+- executar deploy.ps1 ou deploy-auto.bat
+- validar codigo de saida (0/1/2)
+
+B) Checklist de troubleshooting
+- ler mensagens [ERRO]/[ATENCAO]/[CORRECAO]
+- verificar permissao/lock de arquivos (fechar aplicativos conflitantes)
+- confirmar remoto origin e branch principal
+- revisar .env e credenciais
+
+C) Checklist de manutencao
+- atualizar dependencias do requirements.txt
+- revisar logs e arquivos JSONL (rotacao/disk space)
+- verificar tarefas agendadas/servico NSSM ativos
+
+D) Checklist de backup
+- configurar rotacao diaria em JSONL (SMC_JSONL_ROTATE_DAILY)
+- exportar eventos para armazenamento seguro
+- realizar backup de configuracoes (.env, scripts)
+
+================================================================================
+FIM DO RELATORIO
+================================================================================

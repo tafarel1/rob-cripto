@@ -43,14 +43,24 @@ function RunArgs($cmd, $argsArray) {
 function Finish {
   Sep
   switch ($Final) {
-    'SUCCESS' { Ok  "DEPLOY CONCLUIDO COM SUCESSO"; Info "STATUS: Codigo sincronizado com o GitHub"; Info "ACESSE: $RepoUrl" }
-    'NO_CHANGES' { Warn "SEM ALTERACOES - nada para commitar/push"; Fix  "Edite arquivos e execute novamente para criar novo commit." }
-    'FIXABLE_FAILURE' { Warn "FALHA COM CORRECAO - veja instrucoes acima"; Fix  "Siga os passos indicados e rode novamente." }
-    'CRITICAL_ERROR' { Err "ERRO CRITICO - problemas de configuracao"; Fix "Resolva conforme instrucoes e tente novamente." }
+    'SUCCESS' { Ok '[OK] Deploy concluido com sucesso.' }
+    'NO_CHANGES' { Warn '[ATENCAO] Sem alteracoes - nada para commitar/push' ; Fix '[CORRECAO] Edite arquivos e execute novamente para criar novo commit.' }
+    'FIXABLE_FAILURE' { Warn '[ERRO] Falha com correcao - veja instrucoes acima' ; Fix '[CORRECAO] Siga os passos indicados e rode novamente.' }
+    'CRITICAL_ERROR' { Err '[ERRO] Erro critico - problemas de configuracao' ; Fix '[CORRECAO] Resolva conforme instrucoes e tente novamente.' }
+    default { Info '[INFO] Estado final indefinido.' }
   }
   Sep
-  Write-Host ''; Read-Host '[Pressione Enter para continuar...]'
+  Write-Host '' ; Read-Host '[Pressione Enter para continuar...]'
   if ($Unicode) { [Console]::OutputEncoding = $oldEnc }
+  $code = 0
+  switch ($Final) {
+    'SUCCESS' { $code = 0 }
+    'NO_CHANGES' { $code = 0 }
+    'FIXABLE_FAILURE' { $code = 1 }
+    'CRITICAL_ERROR' { $code = 2 }
+    default { $code = 0 }
+  }
+  exit $code
 }
 
 Sep; Info "Iniciando deploy automatico..."; Sep
@@ -67,6 +77,19 @@ if ($r.Code -ne 0) { Err "Falha ao executar Git."; Fix "Verifique se o Git foi i
 
 $r = RunArgs $git @('rev-parse','--is-inside-work-tree')
 if ($r.Code -ne 0) { Err "Este diretorio nao e um repositorio Git."; Fix "Como corrigir:"; Fix "1) git init"; Fix "2) git remote add origin $RepoUrl"; Fix "3) git branch -M $Branch"; $Final='CRITICAL_ERROR'; Finish; return }
+
+# ===== Identidade Git =====
+$unLocal = (RunArgs $git @('config','--get','user.name')).Out.Trim()
+$ueLocal = (RunArgs $git @('config','--get','user.email')).Out.Trim()
+$unGlobal = (RunArgs $git @('config','--global','--get','user.name')).Out.Trim()
+$ueGlobal = (RunArgs $git @('config','--global','--get','user.email')).Out.Trim()
+if (-not $unLocal -and -not $unGlobal) { Err "Identidade Git (user.name) nao configurada."; Fix "git config --global user.name \"Seu Nome\"" }
+if (-not $ueLocal -and -not $ueGlobal) { Err "Identidade Git (user.email) nao configurada."; Fix "git config --global user.email \"seu@email\"" }
+if ((-not $unLocal -and -not $unGlobal) -or (-not $ueLocal -and -not $ueGlobal)) { $Final='FIXABLE_FAILURE'; Finish; return }
+
+# ===== CRLF =====
+$crlf = (RunArgs $git @('config','--get','core.autocrlf')).Out.Trim()
+if (-not $crlf) { Warn "Git core.autocrlf nao configurado."; Fix "Windows recomendado: git config --global core.autocrlf true"; Fix "Linux/macOS recomendado: git config --global core.autocrlf input" } else { Info "core.autocrlf atual: $crlf" }
 
 # ===== Remoto e branch =====
 $r = RunArgs $git @('remote','get-url','origin')
@@ -144,4 +167,3 @@ if ($p.Code -ne 0) {
 if (-not $Final) { $Final = 'SUCCESS' }
 
 Finish
-exit 0
