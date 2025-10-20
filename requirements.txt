@@ -7,3 +7,9 @@ pytest>=8.0.0
 pytest-asyncio>=0.23.0
 python-dotenv>=1.0.0
 tenacity>=8.2.3
+
+# UI/UX
+streamlit>=1.37.0
+plotly>=5.22.0
+pandas>=2.2.2
+psutil>=6.0.0
