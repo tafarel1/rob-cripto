@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Iterable, Tuple, Type
 from loguru import logger
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential, before_sleep_log
@@ -22,7 +23,7 @@ def retry_with_backoff(
         stop=stop_after_attempt(attempts),
         wait=wait_exponential(multiplier=multiplier, min=min_wait, max=max_wait),
         reraise=True,
-        before_sleep=before_sleep_log(logger, level="WARNING"),
+        before_sleep=before_sleep_log(logger, log_level=logging.WARNING),
     )
 
 
