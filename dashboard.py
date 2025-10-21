@@ -6,6 +6,8 @@ from pathlib import Path
 from collections import deque
 
 import streamlit as st
+from smc_sentinel.monitoring.realtime.performance_tracker import AdvancedPerformanceTracker
+from smc_sentinel.config.settings import TradingSettings
 
 # Dependências opcionais para gráficos e métricas
 try:
@@ -16,6 +18,10 @@ try:
     import plotly.express as px
 except Exception:
     px = None
+try:
+    import plotly.graph_objects as go
+except Exception:
+    go = None
 try:
     import psutil
 except Exception:
@@ -161,41 +167,231 @@ env = read_env(ENV_PATH if ENV_PATH.exists() else ENV_EXAMPLE_PATH)
 
 # Seção: Dashboard
 if page == "Dashboard":
-    with stellar_card("Visão Geral"):
-        cols = st.columns(4)
-        # Métricas de sistema
-        cpu_text = mem_text = "N/D"
-        if psutil:
-            cpu = psutil.cpu_percent(interval=0.2)
-            mem = psutil.virtual_memory()
-            cpu_text = f"{cpu:.1f}%"
-            mem_text = f"{mem.percent:.1f}%"
-        cols[0].metric("CPU", cpu_text)
-        cols[1].metric("Memoria", mem_text)
-        cols[2].metric("Coletor", "Online" if st.session_state.get("is_collecting") else "Offline")
+    # Paleta de cores trading
+    trading_colors = {
+        "primary": "#2563eb",
+        "success": "#10b981",
+        "danger": "#ef4444",
+        "warning": "#f59e0b",
+        "background": "#0f172a",
+        "card": "#1e293b",
+        "text_primary": "#f8fafc",
+    }
+
+    # Inicializa tracker avançado na sessão
+    if "adv_tracker" not in st.session_state:
+        st.session_state["adv_tracker"] = AdvancedPerformanceTracker({
+            "max_daily_loss": 0.03,
+            "loss_streak_alert": 5,
+            "min_win_rate": 0.4,
+            "min_trades_for_winrate": 10,
+            "initial_balance": 10000,
+        })
+    tracker = st.session_state["adv_tracker"]
+
+    # Leitura de métricas/alertas de runtime
+    RUNTIME_DIR = PROJECT_ROOT / "runtime"
+    PERF_PATH = RUNTIME_DIR / "performance.json"
+    ALERTS_PATH = RUNTIME_DIR / "alerts.json"
+
+    def read_json_file(path: Path) -> dict | None:
+        try:
+            if path.exists():
+                with open(path, "r", encoding="utf-8") as f:
+                    return json.load(f)
+        except Exception:
+            return None
+        return None
+
+    # Funções de componentes reutilizáveis
+    def metric_card(title: str, value: str, change: str | None = None, trend: str = "neutral"):
+        c = st.container()
+        with c:
+            col1, col2 = st.columns([3, 1])
+            col1.markdown(f"**{title}**")
+            if change is not None:
+                col2.markdown(f"<span style='color:{trading_colors['success'] if str(change).startswith('+') else trading_colors['danger']}'>{change}</span>", unsafe_allow_html=True)
+            st.metric(label="", value=value)
+        return c
+
+    def price_display(symbol: str, price: float, change: float, size: str = "medium"):
+        color = trading_colors['success'] if change > 0 else trading_colors['danger']
+        st.markdown(f"<span style='color:{trading_colors['text_primary']};font-weight:600'>{symbol}</span>", unsafe_allow_html=True)
+        st.markdown(f"<span style='color:{color};font-size:1.2rem'>${price:,.2f} ({change:+.2f}%)</span>", unsafe_allow_html=True)
+
+    def calculate_depth(bids: list[float], asks: list[float]) -> dict:
+        return {
+            "bid_volume": sum(bids) if bids else 0.0,
+            "ask_volume": sum(asks) if asks else 0.0,
+        }
+
+    def order_book(bids: list[float], asks: list[float], spread: float):
+        depth = calculate_depth(bids, asks)
+        st.write({"bids": sorted(bids, reverse=True)[:10], "asks": sorted(asks)[:10], "spread": spread, "depth": depth})
+
+    # Gráficos
+    def interactive_candlestick():
         events_path = get_events_path(env)
-        cols[3].metric("Arquivo Eventos", events_path.name)
-
-    with stellar_card("Eventos Recentes"):
-        st.subheader("Logs/Eventos recentes")
-        events = tail_jsonl(events_path, limit=300)
-        st.caption(f"Mostrando {len(events)} eventos recentes de {events_path}")
-        if events:
-            # Tabela simples
-            st.dataframe(events[-50:])
-
-            # Gráfico de preço se possível
-            if pd and px:
-                df = pd.json_normalize(events)
-                ts_col = next((c for c in df.columns if "time" in c.lower() or "timestamp" in c.lower()), None)
-                price_col = next((c for c in df.columns if c.lower() in ("price", "close", "last", "best_bid") ), None)
-                symbol_col = next((c for c in df.columns if "symbol" in c.lower() or "pair" in c.lower()), None)
-                if ts_col and price_col:
-                    fig = px.line(df.sort_values(ts_col), x=ts_col, y=price_col, color=symbol_col)
-                    fig.update_layout(height=300, margin=dict(l=10, r=10, t=20, b=10))
-                    st.plotly_chart(fig, use_container_width=True)
+        events = tail_jsonl(events_path, limit=500)
+        if not events or not pd:
+            st.info("Sem dados suficientes para gráfico de preço.")
+            return
+        df = pd.json_normalize(events)
+        ts_col = next((c for c in df.columns if "time" in c.lower() or "timestamp" in c.lower()), None)
+        price_col = next((c for c in df.columns if c.lower() in ("price", "close", "last", "best_bid") ), None)
+        if ts_col and price_col and px:
+            fig = px.line(df.sort_values(ts_col), x=ts_col, y=price_col, title="Preço em Tempo")
+            fig.update_layout(height=360, margin=dict(l=10, r=10, t=20, b=10))
+            st.plotly_chart(fig, use_container_width=True)
         else:
-            st.info("Nenhum evento encontrado ainda. Ajuste SMC_JSONL_PATH em Configuracao.")
+            st.line_chart(df[price_col] if price_col in df.columns else df.iloc[:,0])
+
+    def equity_curve():
+        # Usa histórico de retornos do tracker como proxy
+        if not tracker.returns_history:
+            st.info("Sem histórico de retornos para equity curve.")
+            return
+        if px:
+            cum = []
+            acc = 0.0
+            for r in tracker.returns_history:
+                acc += r
+                cum.append(acc)
+            fig = px.line(y=cum, title="Equity Curve (acumulado)")
+            fig.update_layout(height=300, margin=dict(l=10, r=10, t=10, b=10))
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.line_chart(tracker.returns_history)
+
+    def portfolio_allocation():
+        alloc = {"BTC": 50, "ETH": 30, "USDT": 20}
+        if px:
+            fig = px.pie(names=list(alloc.keys()), values=list(alloc.values()), title="Alocação de Portfolio")
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.bar_chart(alloc)
+
+    def risk_exposure():
+        st.progress(min(int(tracker.metrics.get('max_drawdown', 0.0) * 100), 100), text="Max Drawdown")
+        st.caption(f"Profit Factor: {tracker.metrics.get('profit_factor'):.2f} | Sharpe: {tracker.metrics.get('sharpe_ratio'):.2f}")
+
+    # Painel de controle de estratégias
+    def strategy_status_grid():
+        ts = TradingSettings()
+        strategies = ts.ENABLED_STRATEGIES
+        st.table({"Strategy": strategies, "Status": ["running" if ts.TRADING_ENABLED else "stopped"] * len(strategies)})
+
+    def action_buttons():
+        c1, c2, c3 = st.columns(3)
+        if c1.button("Iniciar Trading"):
+            st.session_state["trading_enabled"] = True
+        if c2.button("Parar Trading"):
+            st.session_state["trading_enabled"] = False
+        c3.button("Rebalancear")
+
+    def parameter_sliders():
+        st.slider("Risk %", min_value=0.1, max_value=5.0, value=1.0)
+        st.slider("Posição Máxima", min_value=0.01, max_value=1.0, value=0.1)
+        st.selectbox("Timeframe Primário", ["1m", "5m", "15m", "1h", "4h", "1d"], index=2)
+
+    def strategy_performance():
+        st.metric("Win Rate", f"{tracker.metrics.get('win_rate', 0.0)*100:.1f}%")
+        st.metric("Profit Factor", f"{tracker.metrics.get('profit_factor', 0.0):.2f}")
+
+    # Sistema de alertas
+    def alert_feed():
+        data = read_json_file(ALERTS_PATH)
+        alerts = []
+        if data and isinstance(data.get("alerts"), list):
+            alerts = data["alerts"]
+        else:
+            alerts = tracker.generate_performance_alerts()
+        if not alerts:
+            st.success("Sem alertas ativos.")
+        else:
+            for a in alerts:
+                st.warning(a)
+
+    def alert_settings():
+        st.number_input("Max Daily Loss", min_value=0.005, max_value=0.10, value=0.03, step=0.005)
+        st.number_input("Loss Streak Alert", min_value=2, max_value=10, value=5, step=1)
+
+    def notification_preferences():
+        st.checkbox("Enviar notificações por e-mail", value=False)
+        st.checkbox("Enviar notificações por Telegram", value=False)
+
+    # Layout principal com abas
+    main_tabs = ["📈 Visão Geral", "💰 Portfolio", "📊 Mercado", "⚡ Trading", "🛡️ Risco", "📋 Relatórios"]
+    tabs = st.tabs(main_tabs)
+
+    # Visão Geral
+    with tabs[0]:
+        with stellar_card("Métricas em Tempo Real"):
+            cols = st.columns(4)
+            cpu_text = mem_text = "N/D"
+            if psutil:
+                cpu = psutil.cpu_percent(interval=0.2)
+                mem = psutil.virtual_memory()
+                cpu_text = f"{cpu:.1f}%"
+                mem_text = f"{mem.percent:.1f}%"
+
+            # Carregar métricas de performance do runtime se disponíveis
+            perf_data = read_json_file(PERF_PATH) or {}
+            daily_pnl_val = float(perf_data.get("daily_pnl", tracker.metrics.get('daily_pnl', 0.0)))
+            win_rate_val = float(perf_data.get("win_rate", tracker.metrics.get('win_rate', 0.0)))
+
+            with cols[0]:
+                metric_card("CPU", cpu_text, None, "neutral")
+            with cols[1]:
+                metric_card("Memória", mem_text, None, "neutral")
+            with cols[2]:
+                metric_card("P&L Diário", f"R$ {daily_pnl_val:,.2f}", None, "neutral")
+            with cols[3]:
+                metric_card("Win Rate", f"{win_rate_val*100:.1f}%", None, "neutral")
+
+        with stellar_card("Alertas de Performance (runtime)"):
+            alerts_data = read_json_file(ALERTS_PATH) or {}
+            alerts = alerts_data.get("alerts", []) if isinstance(alerts_data, dict) else []
+            if not alerts:
+                st.success("Sem alertas de runtime.")
+            else:
+                for a in alerts[:5]:
+                    st.warning(str(a))
+
+    # Portfolio
+    with tabs[1]:
+        with stellar_card("Resumo do Portfolio"):
+            portfolio_allocation()
+
+    # Mercado
+    with tabs[2]:
+        with stellar_card("Preço / Gráficos"):
+            interactive_candlestick()
+        with stellar_card("Order Book"):
+            order_book([100, 200, 300], [110, 210, 310], spread=10)
+
+    # Trading
+    with tabs[3]:
+        with stellar_card("Controle de Estratégias"):
+            strategy_status_grid()
+            action_buttons()
+            parameter_sliders()
+        with stellar_card("Performance Estratégias"):
+            strategy_performance()
+
+    # Risco
+    with tabs[4]:
+        with stellar_card("Exposição e Risco"):
+            risk_exposure()
+        with stellar_card("Alertas"):
+            alert_feed()
+            alert_settings()
+            notification_preferences()
+
+    # Relatórios
+    with tabs[5]:
+        with stellar_card("Equity Curve"):
+            equity_curve()
 
 # Seção: Coletor
 elif page == "Coletor":
