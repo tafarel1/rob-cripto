@@ -1,0 +1,1 @@
+# Pacote de implementações por exchange (Binance, Coinbase, etc.)

@@ -61,6 +61,23 @@ class TradingSettings(BaseSettings):
     MAX_POSITION_SIZE: float = 0.1
     DEFAULT_LEVERAGE: int = 3
     ENABLE_PYRAMIDING: bool = True
+    
+    # Feature flags por componente
+    FEATURE_TOGGLES_ENABLED: bool = True
+    FF_EXECUTION_MODE: str = "auto"  # legacy | new | auto
+    FF_EXECUTION_ROLLOUT_PCT: int = 0
+    FF_EXECUTION_MAX_CONSEC_FAIL: int = 5
+    FF_EXECUTION_ROLLBACK_TIMEOUT_S: int = 300
+
+    FF_POLLER_MODE: str = "auto"
+    FF_POLLER_ROLLOUT_PCT: int = 0
+    FF_POLLER_MAX_CONSEC_FAIL: int = 5
+    FF_POLLER_ROLLBACK_TIMEOUT_S: int = 300
+
+    FF_FEES_MODE: str = "auto"
+    FF_FEES_ROLLOUT_PCT: int = 0
+    FF_FEES_MAX_CONSEC_FAIL: int = 5
+    FF_FEES_ROLLBACK_TIMEOUT_S: int = 300
 
     class Config:
         env_file = ".env"
@@ -87,4 +104,18 @@ class TradingSettings(BaseSettings):
             'MAX_POSITION_SIZE': self.MAX_POSITION_SIZE,
             'DEFAULT_LEVERAGE': self.DEFAULT_LEVERAGE,
             'ENABLE_PYRAMIDING': self.ENABLE_PYRAMIDING,
+            # Feature flags
+            'FEATURE_TOGGLES_ENABLED': self.FEATURE_TOGGLES_ENABLED,
+            'FF_EXECUTION_MODE': self.FF_EXECUTION_MODE,
+            'FF_EXECUTION_ROLLOUT_PCT': self.FF_EXECUTION_ROLLOUT_PCT,
+            'FF_EXECUTION_MAX_CONSEC_FAIL': self.FF_EXECUTION_MAX_CONSEC_FAIL,
+            'FF_EXECUTION_ROLLBACK_TIMEOUT_S': self.FF_EXECUTION_ROLLBACK_TIMEOUT_S,
+            'FF_POLLER_MODE': self.FF_POLLER_MODE,
+            'FF_POLLER_ROLLOUT_PCT': self.FF_POLLER_ROLLOUT_PCT,
+            'FF_POLLER_MAX_CONSEC_FAIL': self.FF_POLLER_MAX_CONSEC_FAIL,
+            'FF_POLLER_ROLLBACK_TIMEOUT_S': self.FF_POLLER_ROLLBACK_TIMEOUT_S,
+            'FF_FEES_MODE': self.FF_FEES_MODE,
+            'FF_FEES_ROLLOUT_PCT': self.FF_FEES_ROLLOUT_PCT,
+            'FF_FEES_MAX_CONSEC_FAIL': self.FF_FEES_MAX_CONSEC_FAIL,
+            'FF_FEES_ROLLBACK_TIMEOUT_S': self.FF_FEES_ROLLBACK_TIMEOUT_S,
         }

@@ -19,6 +19,7 @@ class OrderExecutor:
 
 
 import asyncio
+import time
 from typing import Any, Dict, List, Optional
 
 from .slippage_control import apply_slippage_limit
@@ -41,11 +42,12 @@ class SmartOrderExecutor:
     - Integração opcional com RealTimeRiskEngine para checks pré-trade
     """
 
-    def __init__(self, exchange_client: Any, config: Dict[str, Any]):
+    def __init__(self, exchange_client: Any, config: Dict[str, Any], metrics_collector: Optional[Any] = None):
         self.client = exchange_client
         self.config = config
         self.pending_orders: List[Dict[str, Any]] = []
         self.filled_orders: List[Dict[str, Any]] = []
+        self.metrics = metrics_collector
 
     async def execute_smc_trade(self, signal: Dict[str, Any], portfolio: Any) -> Dict[str, Any]:
         """Executa trade baseado em sinal SMC com gestão avançada.
@@ -245,48 +247,72 @@ class SmartOrderExecutor:
     async def _client_place_order(self, order_payload: Dict[str, Any]) -> Dict[str, Any]:
         """Chama o cliente de forma assíncrona com compatibilidade para assinaturas tipadas."""
         client = self.client
+        start_ts = time.time()
+        exchange_name = str(getattr(client, "name", "")).lower()
+        if getattr(self, "metrics", None) is not None:
+            try:
+                self.metrics.record_place_order_attempt(exchange_name)
+            except Exception:
+                pass
         try:
             # Cliente assíncrono nativo
             if hasattr(client, "place_order_async") and callable(client.place_order_async):
                 res = client.place_order_async(order_payload)
                 if asyncio.iscoroutine(res):
-                    return await res
-                return res  # não-coroutine
-
+                    res = await res
+                # não-coroutine possível
             # Cliente síncrono/assíncrono padrão
-            if hasattr(client, "place_order") and callable(client.place_order):
+            elif hasattr(client, "place_order") and callable(client.place_order):
                 # Método assíncrono
                 if asyncio.iscoroutinefunction(client.place_order):
                     if isinstance(order_payload, dict):
-                        return await client.place_order(**order_payload)
-                    return await client.place_order(order_payload)
-
-                # Método síncrono: detectar assinatura tipada vs dict
-                if isinstance(order_payload, dict):
-                    symbol = order_payload.get("symbol")
-                    side = order_payload.get("side")
-                    type_ = order_payload.get("type", "market")
-                    size = order_payload.get("size") or order_payload.get("quantity") or order_payload.get("amount")
-                    price = order_payload.get("price")
-                    # Fallback defensivo
-                    if symbol and side and type_ and size is not None:
-                        return await asyncio.to_thread(
-                            client.place_order,
-                            symbol,
-                            str(side).upper(),
-                            str(type_).upper(),
-                            float(size),
-                            price,
-                        )
-                    # Sem campos mínimos, tentar passar o payload direto
-                    return await asyncio.to_thread(client.place_order, order_payload)
+                        res = await client.place_order(**order_payload)
+                    else:
+                        res = await client.place_order(order_payload)
                 else:
-                    return await asyncio.to_thread(client.place_order, order_payload)
+                    # Método síncrono: detectar assinatura tipada vs dict
+                    if isinstance(order_payload, dict):
+                        symbol = order_payload.get("symbol")
+                        side = order_payload.get("side")
+                        type_ = order_payload.get("type", "market")
+                        size = order_payload.get("size") or order_payload.get("quantity") or order_payload.get("amount")
+                        price = order_payload.get("price")
+                        # Fallback defensivo
+                        if symbol and side and type_ and size is not None:
+                            res = await asyncio.to_thread(
+                                client.place_order,
+                                symbol,
+                                str(side).upper(),
+                                str(type_).upper(),
+                                float(size),
+                                price,
+                            )
+                        else:
+                            # Sem campos mínimos, tentar passar o payload direto
+                            res = await asyncio.to_thread(client.place_order, order_payload)
+                    else:
+                        res = await asyncio.to_thread(client.place_order, order_payload)
+            else:
+                res = {"status": "error", "reason": "no_place_order_method", "order": order_payload}
+            # Após execução, registrar métricas de latência e sucesso/fracasso
+            latency_s = float(time.time() - start_ts)
+            status = str((res or {}).get("status", "")).lower()
+            success = status not in ("error", "rejected")
+            reason = None if success else (status or "unknown")
+            if getattr(self, "metrics", None) is not None:
+                try:
+                    self.metrics.record_place_order_result(exchange_name, latency_s, success=bool(success), reason=reason)
+                except Exception:
+                    pass
+            return res
         except Exception as e:
+            latency_s = float(time.time() - start_ts)
+            if getattr(self, "metrics", None) is not None:
+                try:
+                    self.metrics.record_place_order_result(exchange_name, latency_s, success=False, reason=getattr(e, "__class__", type(e)).__name__)
+                except Exception:
+                    pass
             return {"status": "error", "reason": str(e), "order": order_payload}
-
-        # Caso não exista método
-        return {"status": "error", "reason": "no_place_order_method", "order": order_payload}
 
     async def _get_current_price_async(self, symbol: str, fallback: Optional[float] = None) -> float:
         client = self.client

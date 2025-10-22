@@ -20,7 +20,11 @@ class TokenBucket:
         now = time.monotonic()
         elapsed = now - self.last_refill
         if elapsed > 0:
-            self.tokens = min(self.capacity, self.tokens + elapsed * self.fill_rate)
+            if self.capacity <= 0:
+                # Sem limite de burst: acumula tokens livremente conforme fill_rate
+                self.tokens = self.tokens + elapsed * self.fill_rate
+            else:
+                self.tokens = min(self.capacity, self.tokens + elapsed * self.fill_rate)
             self.last_refill = now
 
     def try_consume(self, cost: float = 1.0) -> bool:
