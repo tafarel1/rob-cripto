@@ -15,6 +15,7 @@ from smc_sentinel.clients.base import ExchangeCredentials
 from smc_sentinel.clients.binance import BinanceClient
 from smc_sentinel.clients.coinbase import CoinbaseClient
 from smc_sentinel.trading.strategies.multi_timeframe import MultiTimeframeSMCStrategy
+from smc_sentinel.trading.strategies.simple_xyz_strategy import SimpleXYZStrategy
 from smc_sentinel.trading.execution.order_executor import SmartOrderExecutor
 from smc_sentinel.monitoring.realtime.performance_tracker import AdvancedPerformanceTracker
 from smc_sentinel.monitoring.realtime.metrics_collector import TradingMetricsCollector
@@ -399,6 +400,24 @@ async def main() -> None:
     # Logger estruturado (usa runtime)
     s_logger = StructuredLogger(runtime)
     s_logger.log_event("startup", {"test_symbols": force_test})
+    # Integração condicional da SimpleXYZStrategy para simulação/controlado
+    try:
+        use_xyz = str(os.getenv("USE_XYZ_STRATEGY") or "").strip().lower() in ("1", "true", "yes", "on")
+        if use_xyz:
+            logger.info("SimpleXYZStrategy ativada para teste; executando trade simulado.")
+            xyz = SimpleXYZStrategy(logger=s_logger)
+            try:
+                comp = int(os.getenv("XYZ_COMPLEXITY") or "10000")
+                io_ms = int(os.getenv("XYZ_IO_DELAY_MS") or "10")
+            except Exception:
+                comp, io_ms = 10000, 10
+            try:
+                sim_res = await xyz.execute_trade(complexity=comp, io_delay_ms=io_ms)
+                s_logger.log_event("xyz_strategy_sim_result", sim_res)
+            except Exception as e:
+                logger.warning(f"Falha na execução da SimpleXYZStrategy: {e}")
+    except Exception:
+        pass
     poller = PollerFactory.create(client)
     fees = FeeCalculatorFactory.create(client)
     trading_service = TradingService(PollerFactory, FeeCalculatorFactory)
