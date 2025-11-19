@@ -1,0 +1,20 @@
+{
+  "name": "robo-cripto-smc",
+  "version": "1.0.0",
+  "description": "Robô de Trading com Smart Money Concepts",
+  "main": "production-server.js",
+  "scripts": {
+    "start": "node production-server.js",
+    "build": "npm run build:frontend",
+    "build:frontend": "npm run build",
+    "dev": "node production-server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1"
+  },
+  "engines": {
+    "node": "18.x"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "name": "robo-cripto-frontend",
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "https://cripto-bot-production.up.railway.app/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
+  ],
+  "env": {
+    "VITE_API_URL": "https://cripto-bot-production.up.railway.app"
+  },
+  "regions": ["iad1"]
+}

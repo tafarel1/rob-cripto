@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "name": "robo-cripto-smc",
+  "functions": {
+    "api/simple.js": {
+      "runtime": "nodejs18.x"
+    }
+  },
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "api/simple.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
+  ]
+}

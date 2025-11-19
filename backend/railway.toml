@@ -1,0 +1,26 @@
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "node production-server.js"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 300
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+[environment]
+NODE_ENV = "production"
+PORT = "8080"
+
+# Otimizações para free tier - economia de recursos
+[sleep]
+enabled = true
+after = "30m"  # Hiberna após 30min inativo
+
+[limits]
+memory = "512Mi"
+cpu = "0.5"
+
+[scale]
+min = 0  # Pode hibernar completamente
+max = 1  # Máximo 1 instância no free tier
