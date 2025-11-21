@@ -1,10 +1,14 @@
 {
   "version": 2,
-  "framework": "vite",
-  "buildCommand": "cd frontend && npm run build",
+  "buildCommand": "cd frontend && npm install && npm run build",
   "outputDirectory": "frontend/dist",
   "installCommand": "npm install",
   "devCommand": "cd frontend && npm run dev",
+  "functions": {
+    "backend/server.js": {
+      "runtime": "nodejs18.x"
+    }
+  },
   "rewrites": [
     {
       "source": "/api/(.*)",

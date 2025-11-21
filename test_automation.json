@@ -1,0 +1,39 @@
+{
+  "exchangeConfigs": [
+    {
+      "name": "binance",
+      "apiKey": "demo_key_12345",
+      "apiSecret": "demo_secret_67890",
+      "testnet": true,
+      "enableFutures": true
+    }
+  ],
+  "riskConfig": {
+    "maxRiskPerTrade": 0.02,
+    "maxDailyLoss": 0.05,
+    "maxOpenPositions": 3,
+    "stopLossDistance": 0.02,
+    "takeProfitDistance": 0.04,
+    "trailingStop": true,
+    "breakEvenAfter": 0.01
+  },
+  "initialBalance": 10000,
+  "strategies": [
+    {
+      "name": "SMC_BTC_Demo",
+      "symbol": "BTC/USDT",
+      "timeframe": "15m",
+      "enabled": true,
+      "smcParams": {
+        "minLiquidityStrength": 0.7,
+        "minOrderBlockStrength": 0.8,
+        "minFvgSize": 0.002
+      },
+      "riskParams": {
+        "maxRiskPerTrade": 0.02,
+        "stopLossDistance": 0.02,
+        "takeProfitDistance": 0.04
+      }
+    }
+  ]
+}
