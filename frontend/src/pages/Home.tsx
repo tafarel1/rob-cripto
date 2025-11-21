@@ -16,8 +16,11 @@ export default function Home() {
             <Link to="/dashboard" className="text-white hover:text-blue-400 transition-colors">
               Dashboard
             </Link>
-            <Link to="/test" className="text-white hover:text-blue-400 transition-colors">
-              Testes
+            <Link to="/dual-dashboard" className="text-white hover:text-blue-400 transition-colors">
+              Conta Dual
+            </Link>
+            <Link to="/automated-trading" className="text-white hover:text-blue-400 transition-colors">
+              Trading Automático
             </Link>
             <Link to="/" className="text-white hover:text-blue-400 transition-colors">
               Sobre
@@ -43,15 +46,17 @@ export default function Home() {
             Análise automatizada, gestão de risco integrada e execução precisa 24/7.
           </p>
           <div className="flex justify-center space-x-4">
-            <Link to="/dashboard">
-              <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3">
+            <Link to="/dual-dashboard">
+              <Button size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3">
                 <TrendingUp className="mr-2 h-5 w-5" />
-                Acessar Dashboard
+                Iniciar com Conta Demo
               </Button>
             </Link>
-            <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-blue-900">
-              Saiba Mais
-            </Button>
+            <Link to="/dashboard">
+              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-blue-900">
+                Dashboard Clássico
+              </Button>
+            </Link>
           </div>
         </div>
       </section>
@@ -99,7 +104,7 @@ export default function Home() {
         <p className="text-gray-300 mb-8 max-w-2xl mx-auto">
           Configure seu robô em minutos e comece a operar com as estratégias mais avançadas do mercado de criptomoedas.
         </p>
-        <Link to="/dashboard">
+        <Link to="/dual-dashboard">
           <Button size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3">
             Começar Agora
           </Button>

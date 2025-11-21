@@ -8,6 +8,7 @@ const tradingRoutes = require('./routes/trading');
 const marketRoutes = require('./routes/market');
 const riskRoutes = require('./routes/risk');
 const notificationRoutes = require('./routes/notifications');
+const accountRoutes = require('./routes/account');
 
 const app = express();
 const server = createServer(app);
@@ -27,6 +28,7 @@ app.use('/api/trading', tradingRoutes);
 app.use('/api/market', marketRoutes);
 app.use('/api/risk', riskRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/account', accountRoutes);
 
 // WebSocket para dados em tempo real
 io.on('connection', (socket) => {

@@ -13,6 +13,8 @@ import dotenv from 'dotenv'
 import { fileURLToPath } from 'url'
 import authRoutes from './routes/auth.js'
 import tradingRoutes from './routes/trading.js'
+import accountRoutes from './routes/account.js'
+import automatedTradingRoutes from './routes/automatedTrading.js'
 
 // for esm mode
 const __filename = fileURLToPath(import.meta.url)
@@ -32,6 +34,8 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }))
  */
 app.use('/api/auth', authRoutes)
 app.use('/api/trading', tradingRoutes)
+app.use('/api/account', accountRoutes)
+app.use('/api/automated-trading', automatedTradingRoutes)
 
 /**
  * health

@@ -1,0 +1,21 @@
+{
+  "name": "robo-cripto",
+  "version": "1.0.0",
+  "description": "Cryptocurrency trading bot with Smart Money Concepts",
+  "main": "backend/server.js",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build": "cd frontend && npm install && npm run build",
+    "vercel-build": "cd frontend && npm install && npm run build",
+    "start": "cd backend && npm start"
+  },
+  "dependencies": {
+    "babel-plugin-react-dev-locator": "^1.0.6",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

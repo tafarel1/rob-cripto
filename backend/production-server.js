@@ -5,6 +5,9 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import ExchangeManager from './src/exchange/ExchangeManager.js';
 import SMCAnalyzer from './src/analysis/SMCAnalyzer.js';
+import { handleApiErrors, asyncHandler, validateRequestBody, handleCorsErrors } from './middleware/errorHandler.js';
+import accountRoutes from './api/routes/account.js';
+import automatedTradingRoutes from './api/routes/automatedTrading.js';
 
 // Carregar variáveis de ambiente
 dotenv.config();
@@ -77,8 +80,14 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Add CORS error handler
+app.use(handleCorsErrors);
+
 // Servir arquivos estáticos do build
 app.use(express.static(path.join(__dirname, 'dist')));
+
+// Automated Trading Routes
+app.use('/api/automated-trading', automatedTradingRoutes);
 
 // API Routes com estado dinâmico
 app.get('/api/trading/status', (req, res) => {
@@ -262,6 +271,9 @@ app.get('/api/usage', (req, res) => {
     timestamp: Date.now()
   });
 });
+
+// ===== ACCOUNT ROUTES =====
+app.use('/api/account', accountRoutes);
 
 // ===== NOVOS ENDPOINTS DE EXCHANGE E ANÁLISE SMC =====
 
@@ -747,15 +759,8 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
-// Error handling
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({
-    success: false,
-    error: 'Erro interno do servidor',
-    timestamp: Date.now()
-  });
-});
+// Error handling - Use comprehensive API error handler
+app.use(handleApiErrors);
 
 // Iniciar servidor
 app.listen(PORT, () => {
