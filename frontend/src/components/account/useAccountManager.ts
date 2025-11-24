@@ -249,16 +249,39 @@ export const useAccountManager = () => {
   };
 
   // Reset virtual account to initial state
-  const resetVirtualAccount = () => {
-    const resetConfig = {
-      ...VIRTUAL_ACCOUNT_CONFIG,
-      balance: VIRTUAL_ACCOUNT_CONFIG.initialBalance
-    };
-    setVirtualAccount(resetConfig);
-    localStorage.setItem('virtualAccount', JSON.stringify(resetConfig));
-    toast.success('Conta virtual resetada!', {
-      description: `Saldo restaurado para $${VIRTUAL_ACCOUNT_CONFIG.initialBalance.toLocaleString()}`,
-    });
+  const resetVirtualAccount = async () => {
+    try {
+      const response = await fetch('/api/account/virtual/reset', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to reset virtual account');
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
+        setVirtualAccount(prev => ({
+          ...prev,
+          balance: result.data.balance,
+          initialBalance: result.data.initialBalance
+        }));
+        toast.success('Conta virtual resetada!', {
+          description: `Saldo restaurado para $${result.data.balance.toLocaleString()}`,
+        });
+      } else {
+        throw new Error(result.error || 'Failed to reset virtual account');
+      }
+    } catch (error) {
+      console.error('Error resetting virtual account:', error);
+      toast.error('Erro ao resetar conta virtual', {
+        description: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
   };
 
   // Get performance metrics

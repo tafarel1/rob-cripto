@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { API_CONFIG } from '@/lib/config';
 
 interface ExchangeStatus {
   isConnected: boolean;
@@ -42,7 +43,7 @@ export function useExchange() {
 
   const fetchExchangeStatus = async () => {
     try {
-      const response = await fetch('/api/exchange/status');
+      const response = await fetch(`${API_CONFIG.baseURL}${API_CONFIG.endpoints.exchange.status}`);
       const data = await response.json();
       
       if (data.success) {
@@ -72,7 +73,7 @@ export function useExchange() {
 
   const fetchBalance = async () => {
     try {
-      const response = await fetch('/api/exchange/balance');
+      const response = await fetch(`${API_CONFIG.baseURL}${API_CONFIG.endpoints.exchange.balance}`);
       const data = await response.json();
       
       if (data.success) {
@@ -96,7 +97,7 @@ export function useExchange() {
 
   const fetchPositions = async () => {
     try {
-      const response = await fetch('/api/exchange/positions');
+      const response = await fetch(`${API_CONFIG.baseURL}${API_CONFIG.endpoints.exchange.positions}`);
       const data = await response.json();
       
       if (data.success) {
@@ -113,7 +114,7 @@ export function useExchange() {
   const connect = async (apiKeys: { key: string; secret: string }) => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/exchange/connect', {
+      const response = await fetch(`${API_CONFIG.baseURL}${API_CONFIG.endpoints.exchange.connect}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -140,7 +141,7 @@ export function useExchange() {
   const disconnect = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/exchange/disconnect', {
+      const response = await fetch(`${API_CONFIG.baseURL}${API_CONFIG.endpoints.exchange.disconnect}`, {
         method: 'POST',
       });
       

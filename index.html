@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Robo Cripto - Trading Bot</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        .header {
+            margin-bottom: 40px;
+        }
+        .status {
+            display: inline-block;
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 25px;
+            margin: 10px;
+        }
+        .api-status {
+            background: rgba(76, 175, 80, 0.8);
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            text-decoration: none;
+            border-radius: 25px;
+            margin: 10px;
+            transition: all 0.3s ease;
+        }
+        .btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+        }
+        .endpoints {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 40px;
+        }
+        .endpoint {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        .code {
+            background: rgba(0,0,0,0.3);
+            padding: 10px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 Robo Cripto</h1>
+            <p>Sistema de Trading Automatizado com Smart Money Concepts</p>
+            <div class="status api-status" id="apiStatus">API: Conectando...</div>
+            <div class="status" id="balanceStatus">Saldo: Carregando...</div>
+        </div>
+
+        <div>
+            <h2>🔗 Endpoints da API</h2>
+            <p>Todos os endpoints estão funcionando e prontos para uso:</p>
+        </div>
+
+        <div class="endpoints">
+            <div class="endpoint">
+                <h3>📊 Status da API</h3>
+                <p>Verifica se a API está funcionando</p>
+                <div class="code">GET /api/health</div>
+                <a href="/api/health" class="btn" target="_blank">Testar</a>
+            </div>
+
+            <div class="endpoint">
+                <h3>💰 Saldo</h3>
+                <p>Retorna o saldo atual da conta</p>
+                <div class="code">GET /api/balance</div>
+                <a href="/api/balance" class="btn" target="_blank">Testar</a>
+            </div>
+
+            <div class="endpoint">
+                <h3>📈 Posições</h3>
+                <p>Lista todas as posições abertas</p>
+                <div class="code">GET /api/positions</div>
+                <a href="/api/positions" class="btn" target="_blank">Testar</a>
+            </div>
+
+            <div class="endpoint">
+                <h3>📋 Ordens</h3>
+                <p>Lista todas as ordens pendentes</p>
+                <div class="code">GET /api/orders</div>
+                <a href="/api/orders" class="btn" target="_blank">Testar</a>
+            </div>
+
+            <div class="endpoint">
+                <h3>💹 Trades</h3>
+                <p>Histórico de trades executados</p>
+                <div class="code">GET /api/trades</div>
+                <a href="/api/trades" class="btn" target="_blank">Testar</a>
+            </div>
+
+            <div class="endpoint">
+                <h3>🎯 Performance</h3>
+                <p>Estatísticas de performance do trading</p>
+                <div class="code">GET /api/performance</div>
+                <a href="/api/performance" class="btn" target="_blank">Testar</a>
+            </div>
+
+            <div class="endpoint">
+                <h3>⚙️ Configurações</h3>
+                <p>Configurações do sistema de trading</p>
+                <div class="code">GET /api/settings</div>
+                <a href="/api/settings" class="btn" target="_blank">Testar</a>
+            </div>
+
+            <div class="endpoint">
+                <h3>🔄 Exchange Status</h3>
+                <p>Status da conexão com a exchange</p>
+                <div class="code">GET /api/exchange/status</div>
+                <a href="/api/exchange/status" class="btn" target="_blank">Testar</a>
+            </div>
+        </div>
+
+        <div style="margin-top: 40px;">
+            <h2>🚀 Funcionalidades</h2>
+            <p>Sistema completo com:</p>
+            <ul style="text-align: left; max-width: 600px; margin: 20px auto;">
+                <li>✅ Trading automatizado com Smart Money Concepts</li>
+                <li>✅ Gestão de risco integrada</li>
+                <li>✅ Stop de emergência</li>
+                <li>✅ Dashboard em tempo real</li>
+                <li>✅ Suporte a múltiplas exchanges</li>
+                <li>✅ Análise técnica avançada</li>
+            </ul>
+        </div>
+
+        <div style="margin-top: 40px;">
+            <p><strong>🔗 URL Principal:</strong> <a href="https://traerobocriptoxeol.vercel.app" style="color: #fff;">https://traerobocriptoxeol.vercel.app</a></p>
+            <p><strong>📊 Status:</strong> <span style="color: #4CAF50;">✅ OPERACIONAL</span></p>
+        </div>
+    </div>
+
+    <script>
+        // Test API connection
+        async function testAPI() {
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
+                
+                if (data.status === 'OK') {
+                    document.getElementById('apiStatus').textContent = 'API: ✅ Conectada';
+                    document.getElementById('apiStatus').className = 'status api-status';
+                    
+                    // Get balance
+                    const balanceResponse = await fetch('/api/balance');
+                    const balanceData = await balanceResponse.json();
+                    document.getElementById('balanceStatus').textContent = `Saldo: $${balanceData.balance.toLocaleString('pt-BR')}`;
+                }
+            } catch (error) {
+                document.getElementById('apiStatus').textContent = 'API: ❌ Erro de conexão';
+                document.getElementById('apiStatus').className = 'status';
+                document.getElementById('apiStatus').style.background = 'rgba(244, 67, 54, 0.8)';
+            }
+        }
+
+        // Test API on page load
+        testAPI();
+        
+        // Refresh every 30 seconds
+        setInterval(testAPI, 30000);
+    </script>
+</body>
+</html>
