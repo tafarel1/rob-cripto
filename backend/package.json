@@ -10,6 +10,7 @@
     "build": "echo 'Build otimizado para Railway'"
   },
   "dependencies": {
+    "axios": "^1.13.2",
     "ccxt": "^4.5.20",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",

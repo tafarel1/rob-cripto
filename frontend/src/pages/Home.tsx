@@ -13,9 +13,6 @@ export default function Home() {
             <h1 className="text-2xl font-bold text-white">Robô Cripto</h1>
           </div>
           <nav className="flex space-x-6">
-            <Link to="/dashboard" className="text-white hover:text-blue-400 transition-colors">
-              Dashboard
-            </Link>
             <Link to="/dual-dashboard" className="text-white hover:text-blue-400 transition-colors">
               Conta Dual
             </Link>
@@ -52,11 +49,7 @@ export default function Home() {
                 Iniciar com Conta Demo
               </Button>
             </Link>
-            <Link to="/dashboard">
-              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-blue-900">
-                Dashboard Clássico
-              </Button>
-            </Link>
+            
           </div>
         </div>
       </section>

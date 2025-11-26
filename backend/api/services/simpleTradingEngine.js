@@ -415,4 +415,21 @@ export class SimpleTradingEngine {
     console.log(`🛑 ${positionsToClose.length} posições fechadas por emergência`);
     return positionsToClose;
   }
+  
+  reset(options = {}) {
+    const { preserveSettings = true, initialBalance } = options;
+    this.stop();
+    this.activePositions.clear();
+    this.dailyPnl = 0;
+    this.dailyTrades = 0;
+    this.maxDailyLossReached = false;
+    if (typeof initialBalance === 'number') {
+      this.initialBalance = initialBalance;
+    }
+    this.currentBalance = this.initialBalance;
+    if (!preserveSettings) {
+      this.strategies.clear();
+    }
+    return this.getStats();
+  }
 }

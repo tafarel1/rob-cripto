@@ -122,6 +122,43 @@ export const useAccountManager = () => {
     }
   }, []);
 
+  useEffect(() => {
+    const id = setTimeout(() => {
+      localStorage.setItem('tradingMode', currentMode);
+      localStorage.setItem('virtualAccount', JSON.stringify(virtualAccount));
+      localStorage.setItem('realAccount', JSON.stringify(realAccount));
+      if (exchangeConfig) {
+        localStorage.setItem('exchangeConfig', JSON.stringify(exchangeConfig));
+      }
+    }, 600);
+    return () => clearTimeout(id);
+  }, [currentMode, virtualAccount, realAccount, exchangeConfig]);
+
+  useEffect(() => {
+    const fetchServerState = async () => {
+      try {
+        const response = await fetch('/api/account/state');
+        if (!response.ok) return;
+        const result = await response.json();
+        if (result?.success && result.data) {
+          const hasLocalVirtual = !!localStorage.getItem('virtualAccount');
+          const hasLocalReal = !!localStorage.getItem('realAccount');
+          const savedMode = localStorage.getItem('tradingMode') as AccountMode;
+          if (!savedMode && result.data.currentMode) {
+            setCurrentMode(result.data.currentMode);
+          }
+          if (!hasLocalVirtual && result.data.virtualAccount) {
+            setVirtualAccount(prev => ({ ...prev, ...result.data.virtualAccount }));
+          }
+          if (!hasLocalReal && result.data.realAccount) {
+            setRealAccount(prev => ({ ...prev, ...result.data.realAccount }));
+          }
+        }
+      } catch {}
+    };
+    fetchServerState();
+  }, []);
+
   // Save configuration to localStorage
   const saveConfiguration = () => {
     localStorage.setItem('tradingMode', currentMode);
@@ -197,10 +234,8 @@ export const useAccountManager = () => {
         },
         body: JSON.stringify({
           mode: 'REAL',
-          config: {
-            ...realAccount,
-            exchange: apiKeys
-          }
+          apiKey: apiKeys.binance.apiKey,
+          apiSecret: apiKeys.binance.secret
         }),
       });
 
@@ -213,6 +248,14 @@ export const useAccountManager = () => {
       if (result.success) {
         setCurrentMode('REAL');
         setExchangeConfig(apiKeys);
+        if (result.data?.currentAccount) {
+          setRealAccount(prev => ({
+            ...prev,
+            balance: result.data.currentAccount.balance ?? prev.balance,
+            initialBalance: result.data.currentAccount.initialBalance ?? prev.initialBalance,
+            riskSettings: result.data.currentAccount.riskSettings ?? prev.riskSettings
+          }));
+        }
         toast.success('⚡ Modo Real ativado!', {
           description: 'Atenção: Você está operando com capital real. Use com cuidado!',
         });
@@ -249,8 +292,14 @@ export const useAccountManager = () => {
   };
 
   // Reset virtual account to initial state
-  const resetVirtualAccount = async () => {
+  const resetVirtualAccount = async (options?: { preserveSettings?: boolean }) => {
     try {
+      const prevSettings = {
+        riskSettings: virtualAccount.riskSettings,
+        features: virtualAccount.features,
+        currency: virtualAccount.currency,
+      };
+
       const response = await fetch('/api/account/virtual/reset', {
         method: 'POST',
         headers: {
@@ -264,14 +313,45 @@ export const useAccountManager = () => {
 
       const result = await response.json();
       
-      if (result.success) {
-        setVirtualAccount(prev => ({
-          ...prev,
-          balance: result.data.balance,
-          initialBalance: result.data.initialBalance
-        }));
+      if (result.success && result.data) {
+        const nextAccount: AccountConfig = {
+          ...virtualAccount,
+          ...result.data,
+        };
+
+        if (options?.preserveSettings) {
+          nextAccount.riskSettings = prevSettings.riskSettings;
+          nextAccount.features = prevSettings.features;
+          nextAccount.currency = prevSettings.currency;
+        }
+
+        setVirtualAccount(nextAccount);
+        localStorage.setItem('virtualAccount', JSON.stringify(nextAccount));
+
+        try {
+          const engineResponse = await fetch('/api/automated-trading/reset', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              preserveSettings: !!options?.preserveSettings,
+              initialBalance: nextAccount.balance
+            })
+          });
+          if (!engineResponse.ok) {
+            throw new Error('Failed to reset trading engine');
+          }
+          const engineResult = await engineResponse.json();
+          if (!engineResult.success) {
+            throw new Error(engineResult.error || 'Failed to reset trading engine');
+          }
+        } catch (e) {
+          toast.error('Erro ao resetar motor de trading', {
+            description: e instanceof Error ? e.message : 'Erro desconhecido'
+          });
+        }
+
         toast.success('Conta virtual resetada!', {
-          description: `Saldo restaurado para $${result.data.balance.toLocaleString()}`,
+          description: `Saldo restaurado para $${nextAccount.balance.toLocaleString()}`,
         });
       } else {
         throw new Error(result.error || 'Failed to reset virtual account');

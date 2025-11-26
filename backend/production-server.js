@@ -5,7 +5,14 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import ExchangeManager from './src/exchange/ExchangeManager.js';
 import SMCAnalyzer from './src/analysis/SMCAnalyzer.js';
-import { handleApiErrors, asyncHandler, validateRequestBody, handleCorsErrors } from './middleware/errorHandler.js';
+import { 
+  handleApiErrors, 
+  asyncHandler, 
+  validateRequestBody, 
+  handleCorsErrors,
+  ensureJsonResponse,
+  requestLogger
+} from './middleware/errorHandler.js';
 import accountRoutes from './api/routes/account.js';
 import automatedTradingRoutes from './api/routes/automatedTrading.js';
 
@@ -78,6 +85,13 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
+// Middleware de logging
+app.use(requestLogger);
+
+// Middleware para garantir JSON válido em todas as respostas
+app.use(ensureJsonResponse);
+
 app.use(express.json());
 
 // Add CORS error handler
@@ -320,6 +334,25 @@ app.get('/api/exchange/status', (req, res) => {
   });
 });
 
+app.post('/api/exchange/disconnect', async (req, res) => {
+  try {
+    await exchangeManager.disconnect();
+    exchangeInitialized = false;
+    tradingState.exchangeConnected = false;
+    res.json({
+      success: true,
+      data: exchangeManager.getConnectionStatus(),
+      timestamp: Date.now()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: Date.now()
+    });
+  }
+});
+
 // Saldo da conta
 app.get('/api/exchange/balance', async (req, res) => {
   try {
@@ -393,6 +426,22 @@ app.get('/api/exchange/ticker', async (req, res) => {
       timestamp: Date.now()
     });
     
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: Date.now()
+    });
+  }
+});
+
+app.get('/api/exchange/positions', async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      data: [],
+      timestamp: Date.now()
+    });
   } catch (error) {
     res.status(500).json({
       success: false,
