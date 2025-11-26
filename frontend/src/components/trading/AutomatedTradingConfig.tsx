@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -55,6 +55,7 @@ interface StrategyConfig {
 }
 
 export default function AutomatedTradingConfig() {
+  const STORAGE_KEY = 'automatedTradingConfig';
   const [config, setConfig] = useState<TradingConfig>({
     riskManagement: {
       maxRiskPerTrade: 2,
@@ -108,6 +109,31 @@ export default function AutomatedTradingConfig() {
   });
 
   const [isSaving, setIsSaving] = useState(false);
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved) as TradingConfig;
+        setConfig(parsed);
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    setIsAutoSaving(true);
+    const id = setTimeout(() => {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+        setLastSavedAt(Date.now());
+      } finally {
+        setIsAutoSaving(false);
+      }
+    }, 600);
+    return () => clearTimeout(id);
+  }, [config]);
 
   const updateRiskParam = (param: keyof typeof config.riskManagement, value: any) => {
     setConfig(prev => ({
@@ -197,6 +223,7 @@ export default function AutomatedTradingConfig() {
     setIsSaving(true);
     
     try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
       // Here you would send the configuration to your backend
       // For now, we'll just show a success message
       
@@ -206,6 +233,7 @@ export default function AutomatedTradingConfig() {
       toast.success('Configuração salva com sucesso!', {
         description: 'As configurações do robô foram atualizadas.'
       });
+      setLastSavedAt(Date.now());
     } catch (error) {
       toast.error('Erro ao salvar configuração', {
         description: 'Não foi possível salvar as configurações.'
@@ -258,18 +286,29 @@ export default function AutomatedTradingConfig() {
             Configure os parâmetros do seu sistema de trading automático
           </p>
         </div>
-        <Button 
-          onClick={saveConfiguration} 
-          disabled={isSaving || errors.length > 0}
-          className="bg-blue-600 hover:bg-blue-700"
-        >
-          {isSaving ? (
-            <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-          ) : (
-            <Save className="w-4 h-4 mr-2" />
-          )}
-          Salvar Configuração
-        </Button>
+        <div className="flex items-center space-x-3">
+          {isAutoSaving ? (
+            <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
+              <RefreshCw className="w-3 h-3 mr-1 animate-spin" /> Salvando...
+            </Badge>
+          ) : lastSavedAt ? (
+            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+              Salvo
+            </Badge>
+          ) : null}
+          <Button 
+            onClick={saveConfiguration} 
+            disabled={isSaving || errors.length > 0}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            {isSaving ? (
+              <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4 mr-2" />
+            )}
+            Salvar Configuração
+          </Button>
+        </div>
       </div>
 
       {/* Validation Alert */}

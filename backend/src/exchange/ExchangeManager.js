@@ -573,6 +573,17 @@ class ExchangeManager {
       count: this.orders.length
     };
   }
+
+  async disconnect() {
+    this.exchange = null;
+    this.isConnected = false;
+    this.connectionStatus = 'disconnected';
+    this.lastError = null;
+    this.balance = null;
+    this.positions = [];
+    this.orders = [];
+    return { success: true };
+  }
 }
 
 export default ExchangeManager;

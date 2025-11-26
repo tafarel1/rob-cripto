@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -21,11 +21,15 @@ import {
   Shield,
   Activity,
   Cog,
-  Bot
+  Bot,
+  FileDown,
+  LineChart,
+  PieChart
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAccountManager } from '@/components/account/useAccountManager';
 import AutomatedTradingConfig from './AutomatedTradingConfig';
+import { useExchange } from '@/hooks/useExchange';
 
 interface EngineStatus {
   status: 'NOT_INITIALIZED' | 'RUNNING' | 'STOPPED' | 'EMERGENCY_STOPPED';
@@ -58,7 +62,7 @@ interface Position {
 }
 
 export default function AutomatedTradingDashboard() {
-  const { currentMode, virtualAccount, realAccount } = useAccountManager();
+  const { currentMode, virtualAccount, realAccount, resetVirtualAccount } = useAccountManager();
   const [engineStatus, setEngineStatus] = useState<EngineStatus | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
@@ -66,6 +70,10 @@ export default function AutomatedTradingDashboard() {
   const [showSettings, setShowSettings] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [preserveSettings, setPreserveSettings] = useState(true);
+  const [isResetting, setIsResetting] = useState(false);
+  const { balance, exchangeStatus, connect, disconnect, isLoading: isConnLoading } = useExchange();
 
   // Fetch engine status
   const fetchEngineStatus = async () => {
@@ -284,8 +292,8 @@ export default function AutomatedTradingDashboard() {
 
   // Auto-refresh effect
   useEffect(() => {
-    if (autoRefresh && engineStatus && engineStatus.status === 'RUNNING') {
-      const interval = setInterval(fetchEngineStatus, 10000); // Refresh every 10 seconds
+    if (autoRefresh) {
+      const interval = setInterval(fetchEngineStatus, 5000);
       return () => clearInterval(interval);
     }
   }, [autoRefresh, engineStatus?.status]);
@@ -294,6 +302,52 @@ export default function AutomatedTradingDashboard() {
   useEffect(() => {
     fetchEngineStatus();
   }, []);
+
+  const equity = useMemo(() => {
+    const base = currentMode === 'VIRTUAL' ? virtualAccount.balance : realAccount.balance;
+    return base;
+  }, [currentMode, virtualAccount.balance, realAccount.balance]);
+
+  const netExposure = useMemo(() => {
+    const positions = engineStatus?.activePositions || [];
+    const exposure = positions.reduce((sum: number, p: any) => sum + (p.quantity || 0) * (p.currentPrice || p.entryPrice || 0) * (p.type === 'LONG' ? 1 : -1), 0);
+    return exposure;
+  }, [engineStatus?.activePositions]);
+
+  const dailyPnl = useMemo(() => {
+    const risk = engineStatus?.engineStats?.riskStats || {};
+    return risk.dailyPnl ?? 0;
+  }, [engineStatus?.engineStats]);
+
+  const totalPnl = useMemo(() => {
+    const risk = engineStatus?.engineStats?.riskStats || {};
+    return risk.totalPnl ?? 0;
+  }, [engineStatus?.engineStats]);
+
+  const spreadMetrics = useMemo(() => {
+    const marketSpread = engineStatus?.engineStats?.riskStats?.marketSpread ?? null;
+    const botSpread = engineStatus?.engineStats?.riskStats?.botSpread ?? null;
+    return { marketSpread, botSpread };
+  }, [engineStatus?.engineStats]);
+
+  const exportCsv = () => {
+    const rows: string[] = [];
+    rows.push('type,symbol,side,price,quantity,timestamp');
+    (engineStatus?.activePositions || []).forEach((p: any) => {
+      rows.push(`position,${p.symbol},${p.type},${p.currentPrice ?? p.entryPrice ?? ''},${p.quantity ?? ''},${p.openTime ?? ''}`);
+    });
+    (engineStatus?.strategies || []).forEach((s: any) => {
+      rows.push(`strategy,${s.symbol ?? ''},,${s.riskParams?.takeProfitDistance ?? ''},${s.riskParams?.stopLossDistance ?? ''},${Date.now()}`);
+    });
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'smc_trading_export.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Exportação concluída', { description: 'CSV gerado com dados atuais' });
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -327,17 +381,21 @@ export default function AutomatedTradingDashboard() {
               Robô de trading inteligente com Smart Money Concepts
             </p>
           </div>
-          <div className="flex items-center space-x-4">
-            <Badge variant="outline" className={currentMode === 'VIRTUAL' ? 'border-green-200 text-green-700' : 'border-blue-200 text-blue-700'}>
-              {currentMode === 'VIRTUAL' ? '🎮 MODO DEMO' : '⚡ MODO REAL'}
-            </Badge>
-            {engineStatus && (
-              <div className="flex items-center space-x-2">
-                <div className={`w-3 h-3 rounded-full ${getStatusColor(engineStatus.status)} animate-pulse`}></div>
-                <span className="text-sm font-medium">{getStatusText(engineStatus.status)}</span>
-              </div>
-            )}
-          </div>
+        <div className="flex items-center space-x-4">
+          <Badge variant="outline" className={currentMode === 'VIRTUAL' ? 'border-green-200 text-green-700' : 'border-blue-200 text-blue-700'}>
+            {currentMode === 'VIRTUAL' ? '🎮 MODO DEMO' : '⚡ MODO REAL'}
+          </Badge>
+          {engineStatus && (
+            <div className="flex items-center space-x-2">
+              <div className={`w-3 h-3 rounded-full ${getStatusColor(engineStatus.status)} animate-pulse`}></div>
+              <span className="text-sm font-medium">{getStatusText(engineStatus.status)}</span>
+            </div>
+          )}
+          <Button onClick={exportCsv} variant="outline">
+            <FileDown className="w-4 h-4 mr-2" />
+            Exportar CSV
+          </Button>
+        </div>
         </div>
 
         {/* Status Alert */}
@@ -374,7 +432,7 @@ export default function AutomatedTradingDashboard() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   {/* Initialize Button */}
                   <div className="space-y-2">
                     <Button
@@ -451,6 +509,31 @@ export default function AutomatedTradingDashboard() {
                       Parar imediatamente e fechar posições
                     </p>
                   </div>
+
+                  <div className="space-y-2">
+                    <Button
+                      onClick={() => {
+                        if (currentMode !== 'VIRTUAL') {
+                          toast.warning('Reset disponível apenas no modo virtual', {
+                            description: 'Altere para MODO DEMO para resetar a conta virtual.'
+                          });
+                        }
+                        setShowResetConfirm(true);
+                      }}
+                      className="w-full bg-yellow-500 hover:bg-yellow-600 text-black"
+                      size="lg"
+                    >
+                      {isResetting ? (
+                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                      )}
+                      Resetar Conta Virtual
+                    </Button>
+                    <p className="text-xs text-gray-500 text-center">
+                      Restaurar saldo e limpar histórico
+                    </p>
+                  </div>
                 </div>
 
                 {/* Auto Refresh Toggle */}
@@ -469,12 +552,132 @@ export default function AutomatedTradingDashboard() {
                     <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                   </label>
                 </div>
-              </CardContent>
-            </Card>
+            </CardContent>
+          </Card>
 
-            {/* Engine Statistics */}
+          {showResetConfirm && (
+            <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900">Confirmar reset da conta virtual</h3>
+                <div className="text-sm text-gray-700 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span>Saldo virtual</span>
+                    <span className="font-medium text-gray-900">$10.000</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Histórico de trades</span>
+                    <span className="text-gray-900">Será limpo</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Métricas de performance</span>
+                    <span className="text-gray-900">Zeradas</span>
+                  </div>
+                </div>
+                <label className="flex items-center space-x-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={preserveSettings}
+                    onChange={(e) => setPreserveSettings(e.target.checked)}
+                  />
+                  <span>Manter configurações de estratégia SMC e risco</span>
+                </label>
+                <div className="flex justify-end space-x-3 pt-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowResetConfirm(false)}
+                    className="border-gray-300"
+                    disabled={isResetting}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    onClick={async () => {
+                      try {
+                        setIsResetting(true);
+                        await resetVirtualAccount({ preserveSettings });
+                        await fetchEngineStatus();
+                        setShowResetConfirm(false);
+                      } finally {
+                        setIsResetting(false);
+                      }
+                    }}
+                    className="bg-yellow-500 hover:bg-yellow-600 text-black"
+                    disabled={isResetting}
+                  >
+                    {isResetting ? 'Resetando...' : 'Confirmar Reset'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+              <Card className="border-blue-200">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Equity</p>
+                      <p className="text-2xl font-bold text-green-600">${equity.toLocaleString()}</p>
+                    </div>
+                    <DollarSign className="w-8 h-8 text-green-500" />
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="border-purple-200">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">P&L (Dia / Total)</p>
+                      <p className="text-2xl font-bold text-purple-600">${dailyPnl.toFixed(2)} / ${totalPnl.toFixed(2)}</p>
+                    </div>
+                    <TrendingUp className="w-8 h-8 text-purple-500" />
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="border-orange-200">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Exposição Líquida</p>
+                      <p className={`text-2xl font-bold ${Math.abs(netExposure) > (equity * 0.8) ? 'text-red-600' : 'text-orange-600'}`}>${netExposure.toFixed(2)}</p>
+                    </div>
+                    <Target className="w-8 h-8 text-orange-500" />
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="border-gray-200">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Conexão</p>
+                      <p className="text-2xl font-bold text-gray-800">{exchangeStatus?.isConnected ? 'Conectado' : 'Desconectado'}</p>
+                    </div>
+                    <Clock className="w-8 h-8 text-gray-500" />
+                  </div>
+                  <div className="mt-3 flex space-x-3">
+                    <Button
+                      onClick={() => connect({ key: '', secret: '' })}
+                      disabled={isConnLoading}
+                      className="bg-green-600 hover:bg-green-700"
+                      size="sm"
+                    >
+                      Conectar
+                    </Button>
+                    <Button
+                      onClick={() => disconnect()}
+                      disabled={isConnLoading}
+                      className="bg-gray-600 hover:bg-gray-700"
+                      size="sm"
+                    >
+                      Desconectar
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
             {engineStatus && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
                 <Card className="border-blue-200">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
@@ -532,6 +735,76 @@ export default function AutomatedTradingDashboard() {
                 </Card>
               </div>
             )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <span>Spread</span>
+                    <Badge variant="outline" className="bg-gray-50">Mercado: {spreadMetrics.marketSpread ?? 'N/A'} • Robô: {spreadMetrics.botSpread ?? 'N/A'}</Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-40 bg-white border rounded flex items-center justify-center text-gray-400">Gráfico de Spread</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <span>Equity Curve</span>
+                    <LineChart className="w-4 h-4" />
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-40 bg-white border rounded flex items-center justify-center text-gray-400">Gráfico de Equity</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <span>Saldos</span>
+                    <PieChart className="w-4 h-4" />
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="p-3 bg-gray-50 rounded">
+                      <p className="text-gray-600">BTC</p>
+                      <p className="font-semibold">{balance?.data?.free?.BTC?.toFixed(6) ?? 'N/A'}</p>
+                    </div>
+                    <div className="p-3 bg-gray-50 rounded">
+                      <p className="text-gray-600">USDT</p>
+                      <p className="font-semibold">{balance?.data?.free?.USDT?.toFixed(2) ?? 'N/A'}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card className="mt-4">
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <AlertTriangle className="w-5 h-5 mr-2 text-orange-500" />
+                  Alertas de Risco
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="p-4 rounded-lg border bg-red-50">
+                    <p className="text-sm text-red-600">Exposição acima do limite</p>
+                    <Progress value={Math.min(100, Math.abs(netExposure) / (equity || 1) * 100)} />
+                  </div>
+                  <div className="p-4 rounded-lg border bg-yellow-50">
+                    <p className="text-sm text-yellow-600">Drawdown</p>
+                    <Progress value={Math.min(100, (engineStatus?.engineStats?.riskStats?.drawdown || 0) * 100)} />
+                  </div>
+                  <div className="p-4 rounded-lg border bg-purple-50">
+                    <p className="text-sm text-purple-600">Fill Rate</p>
+                    <Progress value={Math.min(100, (engineStatus?.engineStats?.riskStats?.fillRate || 0) * 100)} />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Active Positions */}
             {engineStatus?.activePositions && engineStatus.activePositions.length > 0 && (

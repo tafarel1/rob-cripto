@@ -61,7 +61,7 @@ class VirtualTradingService {
     return { isValid: true };
   }
 
-  async executeTrade({ symbol, side, amount, entryPrice, stopLoss, takeProfit }) {
+  async executeTrade({ symbol, side, amount, entryPrice, stopLoss, takeProfit, currentBalance }) {
     // Simulate market movement
     const marketInfo = this.marketData.get(symbol);
     const volatility = this.volatility[symbol] || 0.03;
@@ -99,7 +99,7 @@ class VirtualTradingService {
 
     return {
       trade,
-      newBalance: this.calculateNewBalance(trade),
+      newBalance: this.calculateNewBalance(trade, currentBalance),
       updatedPerformance
     };
   }
@@ -154,49 +154,112 @@ class VirtualTradingService {
 
   calculatePerformance(trade) {
     // This would be calculated based on account history
-    // For now, return mock performance
-    return {
-      totalTrades: Math.floor(Math.random() * 50) + 10,
-      winningTrades: Math.floor(Math.random() * 30) + 5,
-      losingTrades: Math.floor(Math.random() * 20) + 2,
-      winRate: Math.random() * 40 + 50, // 50-90%
-      totalProfit: Math.random() * 1000 - 200, // -200 to +800
-      realizedPnl: trade.pnl,
-      unrealizedPnl: 0,
-      maxDrawdown: Math.random() * 15 // 0-15%
-    };
+    // For now, return consistent mock performance data
+    try {
+      const baseWinRate = 0.65; // 65% win rate
+      const baseProfit = trade.pnl > 0 ? trade.pnl : Math.abs(trade.pnl) * 0.8;
+      
+      return {
+        totalTrades: 25,
+        winningTrades: 16,
+        losingTrades: 9,
+        winRate: Math.round(baseWinRate * 100 * 100) / 100, // 65.00%
+        totalProfit: Math.round((baseProfit * 15 - Math.abs(trade.pnl) * 9) * 100) / 100,
+        realizedPnl: Math.round(trade.pnl * 100) / 100,
+        unrealizedPnl: 0,
+        maxDrawdown: 8.5
+      };
+    } catch (error) {
+      console.error('Erro ao calcular performance:', error);
+      return {
+        totalTrades: 0,
+        winningTrades: 0,
+        losingTrades: 0,
+        winRate: 0,
+        totalProfit: 0,
+        realizedPnl: 0,
+        unrealizedPnl: 0,
+        maxDrawdown: 0
+      };
+    }
   }
 
-  calculateNewBalance(trade) {
-    // This would be calculated based on current balance
-    // For demo purposes, return a mock balance around the initial amount
-    return 10000 + Math.random() * 2000 - 1000; // 9000-11000
+  calculateNewBalance(trade, currentBalance = 10000) {
+    // Calculate new balance based on trade P&L
+    try {
+      // Derivar novo saldo a partir do saldo atual
+      const feeCost = trade.fees || 0;
+      const newBalance = currentBalance + trade.pnl - feeCost;
+      
+      // Ensure balance doesn't go negative
+      return Math.max(0, Math.round(newBalance * 100) / 100);
+    } catch (error) {
+      console.error('Erro ao calcular novo saldo:', error);
+      return currentBalance;
+    }
   }
 
   // Get current market prices
   getMarketPrices() {
-    const prices = {};
-    this.marketData.forEach((info, symbol) => {
-      prices[symbol] = info.price;
-    });
-    return prices;
+    try {
+      const prices = {};
+      this.marketData.forEach((info, symbol) => {
+        prices[symbol] = Math.round(info.price * 100) / 100; // Round to 2 decimals
+      });
+      return prices;
+    } catch (error) {
+      console.error('Erro ao obter preços de mercado:', error);
+      return {
+        'BTC/USDT': 45000,
+        'ETH/USDT': 3000,
+        'ADA/USDT': 0.5,
+        'SOL/USDT': 100,
+        'DOT/USDT': 10
+      };
+    }
   }
 
   // Get market data for a specific symbol
   getMarketData(symbol) {
-    return this.marketData.get(symbol);
+    try {
+      const data = this.marketData.get(symbol);
+      if (!data) {
+        throw new Error(`Símbolo ${symbol} não encontrado`);
+      }
+      return {
+        price: Math.round(data.price * 100) / 100,
+        trend: data.trend,
+        momentum: Math.round(data.momentum * 100) / 100
+      };
+    } catch (error) {
+      console.error('Erro ao obter dados de mercado:', error);
+      return {
+        price: 45000,
+        trend: 'neutral',
+        momentum: 0
+      };
+    }
   }
 
   // Simulate real-time price updates
   simulatePriceUpdate(symbol) {
-    const marketInfo = this.marketData.get(symbol);
-    const volatility = this.volatility[symbol] || 0.03;
-    
-    // Small random movement
-    const movement = (Math.random() - 0.5) * volatility * 0.5;
-    marketInfo.price *= (1 + movement);
-    
-    return marketInfo.price;
+    try {
+      const marketInfo = this.marketData.get(symbol);
+      if (!marketInfo) {
+        throw new Error(`Símbolo ${symbol} não encontrado`);
+      }
+      
+      const volatility = this.volatility[symbol] || 0.03;
+      
+      // Small random movement
+      const movement = (Math.random() - 0.5) * volatility * 0.5;
+      marketInfo.price *= (1 + movement);
+      
+      return Math.round(marketInfo.price * 100) / 100;
+    } catch (error) {
+      console.error('Erro ao simular atualização de preço:', error);
+      return 45000; // Fallback price
+    }
   }
 }
 

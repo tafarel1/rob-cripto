@@ -328,4 +328,35 @@ router.post('/emergency-stop',
     }
   }));
 
+// Reset trading engine
+router.post('/reset',
+  asyncHandler(async (req, res) => {
+    if (!tradingEngine) {
+      return res.status(400).json({
+        success: false,
+        error: 'Motor de trading não inicializado.'
+      });
+    }
+
+    try {
+      const { preserveSettings = true, initialBalance } = req.body || {};
+      const stats = tradingEngine.reset({ preserveSettings, initialBalance });
+      res.json({
+        success: true,
+        message: 'Motor de trading resetado com sucesso',
+        data: {
+          status: stats.isRunning ? 'RUNNING' : 'STOPPED',
+          engineStats: stats,
+          activePositions: tradingEngine.getActivePositions(),
+          strategies: tradingEngine.getStrategies(),
+          timestamp: new Date().toISOString(),
+          config: engineConfig
+        }
+      });
+    } catch (error) {
+      console.error('Erro ao resetar motor de trading:', error);
+      throw new Error(`Falha ao resetar motor de trading: ${error.message}`);
+    }
+  }));
+
 export default router;

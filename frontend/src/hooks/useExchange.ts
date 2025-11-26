@@ -47,15 +47,17 @@ export function useExchange() {
       const data = await response.json();
       
       if (data.success) {
+        const s = data.data || {};
+        const connected = !!s.isConnected;
         setExchangeStatus({
-          isConnected: data.connected,
-          exchange: data.exchange || 'binance',
-          status: data.connected ? 'connected' : 'disconnected',
+          isConnected: connected,
+          exchange: s.exchange || 'binance',
+          status: connected ? 'connected' : (s.status === 'error' ? 'error' : 'disconnected'),
           lastUpdate: Date.now()
         });
 
         // Fetch balance if connected
-        if (data.connected) {
+        if (connected) {
           fetchBalance();
           fetchPositions();
         }
