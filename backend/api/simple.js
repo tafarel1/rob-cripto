@@ -1,7 +1,12 @@
 import express from 'express';
 import cors from 'cors';
+import ExchangeManager from '../src/exchange/ExchangeManager.js';
 
 const app = express();
+
+// Exchange manager (modo simplificado compatível com Railway)
+const exchangeManager = new ExchangeManager();
+let exchangeInitialized = false;
 
 // Estado global do trading
 let tradingState = {
@@ -72,6 +77,52 @@ app.get('/api/trading/positions', (req, res) => {
     data: [],
     timestamp: Date.now()
   });
+});
+
+// ===== Rotas essenciais de Exchange =====
+app.post('/api/exchange/connect', async (req, res) => {
+  try {
+    const result = await exchangeManager.initialize();
+    exchangeInitialized = !!result.success;
+    res.json({
+      success: true,
+      data: exchangeManager.getConnectionStatus(),
+      message: result.message,
+      timestamp: Date.now()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: Date.now()
+    });
+  }
+});
+
+app.get('/api/exchange/status', (req, res) => {
+  res.json({
+    success: true,
+    data: exchangeManager.getConnectionStatus(),
+    timestamp: Date.now()
+  });
+});
+
+app.post('/api/exchange/disconnect', async (req, res) => {
+  try {
+    await exchangeManager.disconnect();
+    exchangeInitialized = false;
+    res.json({
+      success: true,
+      data: exchangeManager.getConnectionStatus(),
+      timestamp: Date.now()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: Date.now()
+    });
+  }
 });
 
 app.post('/api/trading/start', (req, res) => {
