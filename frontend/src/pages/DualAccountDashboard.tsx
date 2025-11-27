@@ -9,7 +9,8 @@ import {
   Settings, 
   TestTube,
   Zap,
-  Bot
+  Bot,
+  Home
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -48,6 +49,12 @@ export default function DualAccountDashboard() {
             </div>
             
             <div className="flex items-center space-x-4">
+              <Link to="/">
+                <Button className="bg-purple-600 hover:bg-purple-700 text-white">
+                  <Home className="w-4 h-4 mr-2" />
+                  Página Inicial
+                </Button>
+              </Link>
               <Link to="/automated-trading">
                 <Button className="bg-purple-600 hover:bg-purple-700 text-white">
                   <Bot className="w-4 h-4 mr-2" />
