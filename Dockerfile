@@ -4,23 +4,21 @@ FROM node:18-alpine
 # Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy entire repository
+COPY . .
 
-# Install dependencies
-RUN npm ci --only=production
+# Build frontend SPA
+RUN cd frontend && npm ci && npm run build
 
-# Copy built application
-COPY dist ./dist
-COPY production-server.js ./
-COPY api ./api
+# Set backend as main app
+# Backend will serve SPA from ../frontend/dist
 
 # Expose port
-EXPOSE 3000
+EXPOSE 3001
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"
+  CMD node -e "require('http').get(`http://localhost:${process.env.PORT || 3001}/api/health`, (res) => { process.exit(res.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"
 
 # Start the application
-CMD ["node", "production-server.js"]
+CMD ["node", "backend/production-server.js"]
