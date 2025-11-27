@@ -1,0 +1,25 @@
+ [build]
+ builder = "nixpacks"
+
+ [deploy]
+ startCommand = "node backend/production-server.js"
+ healthcheckPath = "/api/health"
+ healthcheckTimeout = 300
+ restartPolicyType = "on_failure"
+ restartPolicyMaxRetries = 3
+
+ [environment]
+ NODE_ENV = "production"
+ EXCHANGE_MODE = "testnet"
+
+ [sleep]
+ enabled = true
+ after = "30m"
+
+ [limits]
+ memory = "512Mi"
+ cpu = "0.5"
+
+ [scale]
+ min = 0
+ max = 1

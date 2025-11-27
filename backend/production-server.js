@@ -97,8 +97,8 @@ app.use(express.json());
 // Add CORS error handler
 app.use(handleCorsErrors);
 
-// Servir arquivos estáticos do build
-app.use(express.static(path.join(__dirname, 'dist')));
+// Servir arquivos estáticos do build do frontend
+app.use(express.static(path.join(__dirname, '../frontend/dist')));
 
 // Automated Trading Routes
 app.use('/api/automated-trading', automatedTradingRoutes);
