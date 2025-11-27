@@ -10,6 +10,9 @@ COPY . .
 # Build frontend SPA
 RUN cd frontend && npm ci && npm run build
 
+# Install backend dependencies
+RUN cd backend && npm ci --only=production
+
 # Set backend as main app
 # Backend will serve SPA from ../frontend/dist
 
