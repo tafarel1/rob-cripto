@@ -24,8 +24,10 @@ import {
   Bot,
   FileDown,
   LineChart,
-  PieChart
+  PieChart,
+  Home
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAccountManager } from '@/components/account/useAccountManager';
 import AutomatedTradingConfig from './AutomatedTradingConfig';
@@ -391,6 +393,18 @@ export default function AutomatedTradingDashboard() {
               <span className="text-sm font-medium">{getStatusText(engineStatus.status)}</span>
             </div>
           )}
+          <Link to="/">
+            <Button className="bg-purple-600 hover:bg-purple-700 text-white">
+              <Home className="w-4 h-4 mr-2" />
+              Página Inicial
+            </Button>
+          </Link>
+          <Link to="/dual-dashboard">
+            <Button className="bg-purple-600 hover:bg-purple-700 text-white">
+              <Zap className="w-4 h-4 mr-2" />
+              Dual Dashboard
+            </Button>
+          </Link>
           <Button onClick={exportCsv} variant="outline">
             <FileDown className="w-4 h-4 mr-2" />
             Exportar CSV
