@@ -1,7 +1,5 @@
 export const API_CONFIG = {
-  baseURL: import.meta.env.PROD 
-    ? 'https://traerobocriptoxeol.vercel.app' 
-    : '',
+  baseURL: '',
   endpoints: {
     exchange: {
       status: '/api/exchange/status',
