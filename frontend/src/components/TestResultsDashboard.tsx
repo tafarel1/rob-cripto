@@ -1,16 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { 
   BarChart3,
-  TrendingUp,
-  TrendingDown,
   DollarSign,
   Clock,
   CheckCircle,
-  XCircle,
   AlertCircle,
   Zap,
   Target,
@@ -25,7 +22,7 @@ interface TestResult {
   status: 'success' | 'failed' | 'warning';
   duration: number;
   message: string;
-  details?: any;
+  details?: Record<string, unknown>;
 }
 
 interface TestSummary {
@@ -43,27 +40,28 @@ export default function TestResultsDashboard() {
   const [testSummary, setTestSummary] = useState<TestSummary | null>(null);
   const [isRunningTests, setIsRunningTests] = useState(false);
   const [lastTestRun, setLastTestRun] = useState<Date | null>(null);
+  const TEST_TYPES: TestResult['testType'][] = ['connection', 'analysis', 'order', 'risk', 'notification'];
 
   // Buscar resultados de testes
-  const fetchTestResults = async () => {
+  const fetchTestResults = useCallback(async () => {
     try {
-      const response = await fetch('/api/tests/results');
+      const response = await fetch(`${API_CONFIG.baseURL}/api/tests/results`);
       const data = await response.json();
       if (data.success) {
         setTestResults(data.data.results);
         setTestSummary(data.data.summary);
         setLastTestRun(new Date(data.data.summary.lastRun));
       }
-    } catch (error) {
-      console.error('Erro ao buscar resultados de testes:', error);
+    } catch (err) {
+      console.error('Erro ao buscar resultados de testes:', err);
     }
-  };
+  }, []);
 
   // Executar todos os testes
   const runAllTests = async () => {
     try {
       setIsRunningTests(true);
-      const response = await fetch('/api/tests/run', { method: 'POST' });
+      const response = await fetch(`${API_CONFIG.baseURL}/api/tests/run`, { method: 'POST' });
       const data = await response.json();
       if (data.success) {
         await fetchTestResults();
@@ -77,9 +75,9 @@ export default function TestResultsDashboard() {
   };
 
   // Executar teste específico
-  const runSpecificTest = async (testType: string) => {
+  const runSpecificTest = async (testType: TestResult['testType']) => {
     try {
-      const response = await fetch('/api/tests/run', {
+      const response = await fetch(`${API_CONFIG.baseURL}/api/tests/run`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -90,14 +88,14 @@ export default function TestResultsDashboard() {
       if (data.success) {
         await fetchTestResults();
       }
-    } catch (error) {
-      console.error(`Erro ao executar teste ${testType}:`, error);
+    } catch (err) {
+      console.error(`Erro ao executar teste ${testType}:`, err);
     }
   };
 
   useEffect(() => {
     fetchTestResults();
-  }, []);
+  }, [fetchTestResults]);
 
   const getTestTypeIcon = (testType: string) => {
     switch (testType) {
@@ -151,12 +149,7 @@ export default function TestResultsDashboard() {
     return `${(ms / 1000).toFixed(2)}s`;
   };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(value);
-  };
+  
 
   if (!testSummary) {
     return (
@@ -261,7 +254,7 @@ export default function TestResultsDashboard() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-            {['connection', 'analysis', 'order', 'risk', 'notification'].map((category) => {
+            {TEST_TYPES.map((category) => {
               const categoryTests = testResults.filter(t => t.testType === category);
               const successCount = categoryTests.filter(t => t.status === 'success').length;
               const successRate = categoryTests.length > 0 ? (successCount / categoryTests.length) * 100 : 0;
@@ -351,3 +344,4 @@ export default function TestResultsDashboard() {
     </div>
   );
 }
+import { API_CONFIG } from '@/lib/config';

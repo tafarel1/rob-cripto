@@ -33,7 +33,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/account', accountRoutes);
 
 // Error handling middleware
-app.use((err, req, res, next) => {
+app.use((err, req, res, _next) => {
   console.error('Error:', err);
   res.status(500).json({ 
     success: false, 

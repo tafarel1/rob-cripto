@@ -1,34 +1,28 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { 
   Play,
-  Square,
   RefreshCw,
-  TrendingUp,
-  TrendingDown,
   DollarSign,
   Activity,
   Zap,
   Shield,
   BarChart3,
-  Target,
-  Clock,
-  CheckCircle,
-  XCircle,
-  AlertCircle
+  Target
 } from 'lucide-react';
+
+type TestType = 'connection' | 'analysis' | 'order' | 'risk' | 'notification';
 
 interface TestResult {
   id: string;
   timestamp: number;
-  testType: 'connection' | 'analysis' | 'order' | 'risk' | 'notification';
+  testType: TestType;
   status: 'success' | 'failed' | 'warning';
   duration: number;
   message: string;
-  details?: any;
+  details?: Record<string, unknown>;
 }
 
 interface SystemStatus {
@@ -49,7 +43,7 @@ export default function SystemValidationDemo() {
   });
   const [isRunningTests, setIsRunningTests] = useState(false);
   const [testResults, setTestResults] = useState<TestResult[]>([]);
-  const [currentTest, setCurrentTest] = useState<string>('');
+  const [currentTest, setCurrentTest] = useState<TestType | ''>('');
 
   const getTestTypeIcon = (testType: string) => {
     switch (testType) {
@@ -95,7 +89,7 @@ export default function SystemValidationDemo() {
     setIsRunningTests(true);
     setTestResults([]);
     
-    const testTypes = ['connection', 'analysis', 'order', 'risk', 'notification'];
+    const testTypes: TestType[] = ['connection', 'analysis', 'order', 'risk', 'notification'];
     
     for (const testType of testTypes) {
       setCurrentTest(testType);
@@ -107,9 +101,9 @@ export default function SystemValidationDemo() {
     setIsRunningTests(false);
   };
 
-  const runIndividualTest = async (testType: string) => {
+  const runIndividualTest = async (testType: TestType) => {
     try {
-      const response = await fetch('/api/tests/run', {
+      const response = await fetch(`${API_CONFIG.baseURL}/api/tests/run`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -123,24 +117,32 @@ export default function SystemValidationDemo() {
         const testResult = result.data.results[0];
         setTestResults(prev => [...prev, testResult]);
         
-        // Atualizar status do sistema baseado nos resultados
+        const statusKeyMap: Record<TestType, keyof SystemStatus> = {
+          connection: 'exchangeConnected',
+          analysis: 'analysisWorking',
+          order: 'orderSystemReady',
+          risk: 'riskManagementActive',
+          notification: 'notificationsEnabled'
+        };
+
         setSystemStatus(prev => ({
           ...prev,
-          [`${testType}Working`]: testResult.status === 'success'
+          [statusKeyMap[testType]]: testResult.status === 'success'
         }));
       }
-    } catch (error) {
-      console.error(`Erro ao executar teste ${testType}:`, error);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`Erro ao executar teste ${testType}:`, message);
       
       // Adicionar resultado de erro
       const errorResult: TestResult = {
         id: `error_${Date.now()}_${testType}`,
         timestamp: Date.now(),
-        testType: testType as any,
+        testType,
         status: 'failed',
         duration: 0,
-        message: `Erro de conexão: ${error.message}`,
-        details: { error: error.message }
+        message: `Erro de conexão: ${message}`,
+        details: { error: message }
       };
       
       setTestResults(prev => [...prev, errorResult]);
@@ -323,3 +325,4 @@ export default function SystemValidationDemo() {
     </div>
   );
 }
+import { API_CONFIG } from '@/lib/config';

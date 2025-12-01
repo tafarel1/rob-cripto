@@ -32,7 +32,7 @@ class VirtualTradingService {
     });
   }
 
-  validateTrade({ symbol, side, amount, entryPrice, balance, riskSettings }) {
+  validateTrade({ symbol, side: _side, amount, entryPrice: _entryPrice, balance, riskSettings }) {
     // Validate symbol
     if (!riskSettings.allowedPairs.includes(symbol)) {
       return { isValid: false, error: 'Par não permitido para este modo' };
@@ -44,7 +44,6 @@ class VirtualTradingService {
     }
 
     // Calculate risk per trade
-    const riskAmount = amount * (riskSettings.maxRiskPerTrade / 100);
     const maxPositionSize = balance * (riskSettings.maxRiskPerTrade / 100);
     
     if (amount > maxPositionSize) {
@@ -55,7 +54,6 @@ class VirtualTradingService {
     }
 
     // Validate against daily loss limit
-    const dailyLossLimit = balance * (riskSettings.dailyLossLimit / 100);
     // This would need to track daily losses
 
     return { isValid: true };

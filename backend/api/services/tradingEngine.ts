@@ -8,7 +8,8 @@ import {
   StrategyConfig, 
   SMCAnalysis,
   ExchangeConfig,
-  RiskManagement 
+  RiskManagement,
+  RiskStats
 } from '../../shared/types';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -220,7 +221,7 @@ export class TradingEngine {
 
     // Executar ordem na exchange
     try {
-      const orderResult = await this.exchangeService.createOrderWithStopLossAndTakeProfit(
+      const _orderResult = await this.exchangeService.createOrderWithStopLossAndTakeProfit(
         'binance',
         config.symbol,
         signal.type === 'BUY' ? 'buy' : 'sell',
@@ -272,7 +273,7 @@ export class TradingEngine {
     const currentPrice = ticker.last;
 
     // Calcular PnL não realizado
-    const unrealizedPnl = position.type === 'LONG'
+    const _unrealizedPnl = position.type === 'LONG'
       ? (currentPrice - position.entryPrice) * position.quantity
       : (position.entryPrice - currentPrice) * position.quantity;
 
@@ -411,7 +412,7 @@ export class TradingEngine {
     activeStrategies: number;
     activePositions: number;
     totalTrades: number;
-    riskStats: any;
+    riskStats: RiskStats;
     isRunning: boolean;
   } {
     return {

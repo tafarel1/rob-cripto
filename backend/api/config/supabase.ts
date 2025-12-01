@@ -43,7 +43,7 @@ export interface Database {
           created_at: string;
           updated_at: string;
           is_active: boolean;
-          settings: Record<string, any>;
+          settings: Record<string, unknown>;
         };
         Insert: Omit<Database['public']['Tables']['users']['Row'], 'id' | 'created_at' | 'updated_at'>;
         Update: Partial<Database['public']['Tables']['users']['Insert']>;
@@ -56,7 +56,7 @@ export interface Database {
           symbol: string;
           timeframe: string;
           enabled: boolean;
-          config: Record<string, any>;
+          config: Record<string, unknown>;
           created_at: string;
           updated_at: string;
         };
@@ -127,7 +127,7 @@ export interface Database {
           average_loss: number;
           largest_win: number;
           largest_loss: number;
-          config: Record<string, any>;
+          config: Record<string, unknown>;
           created_at: string;
         };
         Insert: Omit<Database['public']['Tables']['backtests']['Row'], 'id' | 'created_at'>;
@@ -170,7 +170,7 @@ export interface Database {
           id: string;
           user_id: string;
           type: 'TELEGRAM' | 'EMAIL' | 'WEBHOOK';
-          config: Record<string, any>;
+          config: Record<string, unknown>;
           enabled: boolean;
           created_at: string;
           updated_at: string;
@@ -184,7 +184,7 @@ export interface Database {
           user_id?: string;
           level: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
           message: string;
-          metadata?: Record<string, any>;
+          metadata?: Record<string, unknown>;
           timestamp: string;
           created_at: string;
         };

@@ -1,5 +1,5 @@
-// Error handling middleware for API routes
-const handleApiErrors = (err, req, res, _next) => {
+// Enhanced error handling middleware for API routes
+const handleApiErrors = (err, req, res, next) => {
   // Log the error for debugging
   console.error('🚨 API Error:', {
     message: err.message,
@@ -45,19 +45,19 @@ const handleApiErrors = (err, req, res, _next) => {
   }
 
   // For non-API routes, let the default error handler handle it
-  _next(err);
+  next(err);
 };
 
 // Async error wrapper to catch promise rejections
 const asyncHandler = (fn) => {
-  return (req, res, _next) => {
-    Promise.resolve(fn(req, res, _next)).catch(_next);
+  return (req, res, next) => {
+    Promise.resolve(fn(req, res, next)).catch(next);
   };
 };
 
 // Validate request body middleware
 const validateRequestBody = (requiredFields) => {
-  return (req, res, _next) => {
+  return (req, res, next) => {
     if (!req.body || typeof req.body !== 'object') {
       return res.status(400).json({
         success: false,
@@ -77,12 +77,12 @@ const validateRequestBody = (requiredFields) => {
       });
     }
 
-    _next();
+    next();
   };
 };
 
 // CORS error handler
-const handleCorsErrors = (err, req, res, _next) => {
+const handleCorsErrors = (err, req, res, next) => {
   if (err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND') {
     return res.status(503).json({
       success: false,
@@ -101,11 +101,11 @@ const handleCorsErrors = (err, req, res, _next) => {
     });
   }
 
-  _next(err);
+  next(err);
 };
 
 // Middleware para garantir que todas as respostas sejam JSON válidas
-const ensureJsonResponse = (req, res, _next) => {
+const ensureJsonResponse = (req, res, next) => {
   const originalJson = res.json;
   
   res.json = function(data) {
@@ -137,36 +137,58 @@ const ensureJsonResponse = (req, res, _next) => {
     }
   };
   
-  _next();
+  next();
 };
 
 // Middleware para logging de requisições
-const requestLogger = (req, res, _next) => {
+const requestLogger = (req, res, next) => {
   const start = Date.now();
+  
   res.on('finish', () => {
     const duration = Date.now() - start;
-    const log = {
-      level: 'info',
-      method: req.method,
-      path: req.path,
-      statusCode: res.statusCode,
-      durationMs: duration,
-      timestamp: new Date().toISOString()
-    };
-    console.log(JSON.stringify(log));
+    console.log(`📊 ${req.method} ${req.path} - ${res.statusCode} (${duration}ms)`);
+    
+    // Log de erros
     if (res.statusCode >= 400) {
-      const errLog = {
-        level: 'error',
-        method: req.method,
-        path: req.path,
-        statusCode: res.statusCode,
-        durationMs: duration,
-        timestamp: new Date().toISOString()
-      };
-      console.error(JSON.stringify(errLog));
+      console.error(`❌ Erro na requisição: ${req.method} ${req.path} - Status: ${res.statusCode}`);
     }
   });
-  _next();
+  
+  next();
+};
+
+// Middleware para validar JSON nas requisições
+const validateJsonBody = (req, res, next) => {
+  if (req.method === 'GET' || req.method === 'HEAD') {
+    return next();
+  }
+  
+  if (req.headers['content-type'] && req.headers['content-type'].includes('application/json')) {
+    let data = '';
+    
+    req.on('data', chunk => {
+      data += chunk;
+    });
+    
+    req.on('end', () => {
+      if (data) {
+        try {
+          req.body = JSON.parse(data);
+        } catch (error) {
+          console.error('🚨 JSON inválido na requisição:', error);
+          return res.status(400).json({
+            success: false,
+            error: 'JSON inválido na requisição',
+            details: 'O corpo da requisição deve conter JSON válido',
+            timestamp: new Date().toISOString()
+          });
+        }
+      }
+      next();
+    });
+  } else {
+    next();
+  }
 };
 
 export {
@@ -175,5 +197,6 @@ export {
   validateRequestBody,
   handleCorsErrors,
   ensureJsonResponse,
-  requestLogger
+  requestLogger,
+  validateJsonBody
 };

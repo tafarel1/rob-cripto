@@ -15,7 +15,8 @@ export class ExchangeService {
     configs.forEach(config => {
       try {
         const exchangeName = config.name as keyof typeof ccxt;
-        const exchangeClass = (ccxt as any)[exchangeName];
+        type CcxtConstructor = new (params: Record<string, unknown>) => ccxt.Exchange;
+        const exchangeClass = (ccxt as unknown as Record<string, CcxtConstructor>)[exchangeName];
         if (!exchangeClass) {
           throw new Error(`Exchange ${config.name} não suportada`);
         }
@@ -270,7 +271,20 @@ export class ExchangeService {
   /**
    * Mapeia ordem da exchange para nosso formato
    */
-  private mapExchangeOrder(order: any): ExchangeOrder {
+  private mapExchangeOrder(order: {
+    id: string;
+    symbol: string;
+    side: 'buy' | 'sell';
+    type: string;
+    amount: number;
+    price?: number;
+    stopPrice?: number;
+    status: string;
+    filled: number;
+    average?: number;
+    timestamp: number;
+    lastTradeTimestamp?: number;
+  }): ExchangeOrder {
     return {
       id: order.id,
       symbol: order.symbol,
@@ -367,7 +381,6 @@ export class ExchangeService {
     const entryOrder = await this.createMarketOrder(exchangeName, symbol, side, amount);
 
     const oppositeSide = side === 'buy' ? 'sell' : 'buy';
-    const orders: ExchangeOrder[] = [];
 
     // Criar ordem de stop loss
     let stopLossOrder: ExchangeOrder | undefined;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,7 +11,6 @@ import {
   Settings, 
   TrendingUp, 
   AlertTriangle,
-  CheckCircle,
   Clock,
   DollarSign,
   Target,
@@ -39,14 +38,14 @@ interface EngineStatus {
     activeStrategies: number;
     activePositions: number;
     totalTrades: number;
-    riskStats: any;
+    riskStats: RiskStats;
     isRunning: boolean;
   };
-  activePositions: any[];
-  strategies: any[];
+  activePositions: Position[];
+  strategies: Strategy[];
   timestamp: string;
   uptime?: number;
-  config: any;
+  config: unknown;
 }
 
 interface Position {
@@ -63,13 +62,39 @@ interface Position {
   currentPrice?: number;
 }
 
+interface RiskStats {
+  dailyPnl?: number;
+  totalPnl?: number;
+  marketSpread?: number | null;
+  botSpread?: number | null;
+  maxRiskPerTrade?: number;
+  drawdown?: number;
+  fillRate?: number;
+}
+
+interface Strategy {
+  name: string;
+  symbol: string;
+  timeframe: string;
+  enabled: boolean;
+  smcParams?: {
+    minLiquidityStrength?: number;
+    minOrderBlockStrength?: number;
+    minFvgSize?: number;
+  };
+  riskParams?: {
+    maxRiskPerTrade?: number;
+    stopLossDistance?: number;
+    takeProfitDistance?: number;
+  };
+}
+
 export default function AutomatedTradingDashboard() {
   const { currentMode, virtualAccount, realAccount, resetVirtualAccount } = useAccountManager();
   const [engineStatus, setEngineStatus] = useState<EngineStatus | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
-  const [selectedStrategy, setSelectedStrategy] = useState<any>(null);
-  const [showSettings, setShowSettings] = useState(false);
+  
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -78,9 +103,9 @@ export default function AutomatedTradingDashboard() {
   const { balance, exchangeStatus, connect, disconnect, isLoading: isConnLoading } = useExchange();
 
   // Fetch engine status
-  const fetchEngineStatus = async () => {
+  const fetchEngineStatus = useCallback(async () => {
     try {
-      const response = await fetch('/api/automated-trading/status');
+    const response = await fetch(`${API_CONFIG.baseURL}/api/automated-trading/status`);
       const result = await response.json();
       
       if (result.success) {
@@ -99,7 +124,7 @@ export default function AutomatedTradingDashboard() {
         });
       }
     }
-  };
+  }, [autoRefresh]);
 
   // Initialize trading engine
   const initializeEngine = async () => {
@@ -160,7 +185,7 @@ export default function AutomatedTradingDashboard() {
         ]
       };
 
-      const response = await fetch('/api/automated-trading/initialize', {
+      const response = await fetch(`${API_CONFIG.baseURL}/api/automated-trading/initialize`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -195,7 +220,7 @@ export default function AutomatedTradingDashboard() {
     setIsLoading(true);
     
     try {
-      const response = await fetch('/api/automated-trading/start', {
+      const response = await fetch(`${API_CONFIG.baseURL}/api/automated-trading/start`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -229,7 +254,7 @@ export default function AutomatedTradingDashboard() {
     setIsLoading(true);
     
     try {
-      const response = await fetch('/api/automated-trading/stop', {
+      const response = await fetch(`${API_CONFIG.baseURL}/api/automated-trading/stop`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -263,7 +288,7 @@ export default function AutomatedTradingDashboard() {
     setIsLoading(true);
     
     try {
-      const response = await fetch('/api/automated-trading/emergency-stop', {
+      const response = await fetch(`${API_CONFIG.baseURL}/api/automated-trading/emergency-stop`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -298,12 +323,12 @@ export default function AutomatedTradingDashboard() {
       const interval = setInterval(fetchEngineStatus, 5000);
       return () => clearInterval(interval);
     }
-  }, [autoRefresh, engineStatus?.status]);
+  }, [autoRefresh, engineStatus?.status, fetchEngineStatus]);
 
   // Initial fetch
   useEffect(() => {
     fetchEngineStatus();
-  }, []);
+  }, [fetchEngineStatus]);
 
   const equity = useMemo(() => {
     const base = currentMode === 'VIRTUAL' ? virtualAccount.balance : realAccount.balance;
@@ -311,8 +336,8 @@ export default function AutomatedTradingDashboard() {
   }, [currentMode, virtualAccount.balance, realAccount.balance]);
 
   const netExposure = useMemo(() => {
-    const positions = engineStatus?.activePositions || [];
-    const exposure = positions.reduce((sum: number, p: any) => sum + (p.quantity || 0) * (p.currentPrice || p.entryPrice || 0) * (p.type === 'LONG' ? 1 : -1), 0);
+    const positions = (engineStatus?.activePositions || []) as Position[];
+    const exposure = positions.reduce((sum: number, p: Position) => sum + (p.quantity || 0) * ((p.currentPrice ?? p.entryPrice) || 0) * (p.type === 'LONG' ? 1 : -1), 0);
     return exposure;
   }, [engineStatus?.activePositions]);
 
@@ -335,10 +360,10 @@ export default function AutomatedTradingDashboard() {
   const exportCsv = () => {
     const rows: string[] = [];
     rows.push('type,symbol,side,price,quantity,timestamp');
-    (engineStatus?.activePositions || []).forEach((p: any) => {
+    (engineStatus?.activePositions || []).forEach((p: Position) => {
       rows.push(`position,${p.symbol},${p.type},${p.currentPrice ?? p.entryPrice ?? ''},${p.quantity ?? ''},${p.openTime ?? ''}`);
     });
-    (engineStatus?.strategies || []).forEach((s: any) => {
+    (engineStatus?.strategies || []).forEach((s: Strategy) => {
       rows.push(`strategy,${s.symbol ?? ''},,${s.riskParams?.takeProfitDistance ?? ''},${s.riskParams?.stopLossDistance ?? ''},${Date.now()}`);
     });
     const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
@@ -877,7 +902,7 @@ export default function AutomatedTradingDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {engineStatus.strategies.map((strategy: any, index: number) => (
+                    {engineStatus.strategies.map((strategy: Strategy, index: number) => (
                       <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                         <div className="flex items-center space-x-3">
                           <div className={`w-2 h-2 rounded-full ${strategy.enabled ? 'bg-green-500' : 'bg-gray-400'}`}></div>
@@ -946,3 +971,4 @@ export default function AutomatedTradingDashboard() {
     </div>
   );
 }
+import { API_CONFIG } from '@/lib/config';

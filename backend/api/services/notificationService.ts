@@ -100,7 +100,7 @@ export class NotificationService {
   /**
    * Envia notificação de alerta de risco
    */
-  async notifyRiskAlert(alertType: string, details: any): Promise<void> {
+  async notifyRiskAlert(alertType: string, details: Record<string, unknown>): Promise<void> {
     const message = this.formatRiskAlertMessage(alertType, details);
     
     await Promise.all([
@@ -236,7 +236,7 @@ ${context ? `📝 Contexto: ${context}\n` : ''}❌ Mensagem: ${error.message}
   /**
    * Formata mensagem de alerta de risco
    */
-  private formatRiskAlertMessage(alertType: string, details: any): string {
+  private formatRiskAlertMessage(alertType: string, details: Record<string, unknown>): string {
     return `
 ⚠️ *ALERTA DE RISCO*
 
@@ -254,7 +254,14 @@ ${JSON.stringify(details, null, 2)}
   /**
    * Formata mensagem de performance diária
    */
-  private formatDailyPerformanceMessage(stats: any): string {
+  private formatDailyPerformanceMessage(stats: {
+    totalTrades: number;
+    winningTrades: number;
+    losingTrades: number;
+    winRate: number;
+    totalPnl: number;
+    sharpeRatio: number;
+  }): string {
     const emoji = stats.totalPnl >= 0 ? '✅' : '❌';
     
     return `

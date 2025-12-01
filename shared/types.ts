@@ -84,6 +84,17 @@ export interface RiskManagement {
   positionSizingMethod: 'fixed' | 'percentage' | 'kelly';
 }
 
+export interface RiskStats {
+  dailyLoss: number;
+  dailyTrades: number;
+  maxDailyLossReached: boolean;
+  openPositions: number;
+  maxPositions: number;
+  accountBalance: number;
+  riskExposure: number;
+  availableRisk: number;
+}
+
 // Exchange Types
 export interface ExchangeConfig {
   name: string;

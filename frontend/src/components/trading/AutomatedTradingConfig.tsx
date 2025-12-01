@@ -4,8 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
   Settings, 
   Save, 
@@ -13,8 +13,7 @@ import {
   Shield,
   Target,
   TrendingUp,
-  AlertTriangle,
-  CheckCircle
+  AlertTriangle
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -119,7 +118,7 @@ export default function AutomatedTradingConfig() {
         const parsed = JSON.parse(saved) as TradingConfig;
         setConfig(parsed);
       }
-    } catch {}
+    } catch { void 0; }
   }, []);
 
   useEffect(() => {
@@ -135,7 +134,7 @@ export default function AutomatedTradingConfig() {
     return () => clearTimeout(id);
   }, [config]);
 
-  const updateRiskParam = (param: keyof typeof config.riskManagement, value: any) => {
+  const updateRiskParam = (param: keyof typeof config.riskManagement, value: number | boolean) => {
     setConfig(prev => ({
       ...prev,
       riskManagement: {
@@ -145,7 +144,7 @@ export default function AutomatedTradingConfig() {
     }));
   };
 
-  const updateGeneralParam = (param: keyof typeof config.general, value: any) => {
+  const updateGeneralParam = (param: keyof typeof config.general, value: number | boolean) => {
     setConfig(prev => ({
       ...prev,
       general: {
@@ -155,7 +154,7 @@ export default function AutomatedTradingConfig() {
     }));
   };
 
-  const updateStrategyParam = (index: number, param: keyof StrategyConfig, value: any) => {
+  const updateStrategyParam = (index: number, param: keyof StrategyConfig, value: string | boolean) => {
     setConfig(prev => ({
       ...prev,
       strategies: prev.strategies.map((strategy, i) => 
@@ -164,7 +163,7 @@ export default function AutomatedTradingConfig() {
     }));
   };
 
-  const updateStrategySMCParam = (index: number, param: keyof StrategyConfig['smcParams'], value: any) => {
+  const updateStrategySMCParam = (index: number, param: keyof StrategyConfig['smcParams'], value: number) => {
     setConfig(prev => ({
       ...prev,
       strategies: prev.strategies.map((strategy, i) => 
@@ -176,7 +175,7 @@ export default function AutomatedTradingConfig() {
     }));
   };
 
-  const updateStrategyRiskParam = (index: number, param: keyof StrategyConfig['riskParams'], value: any) => {
+  const updateStrategyRiskParam = (index: number, param: keyof StrategyConfig['riskParams'], value: number) => {
     setConfig(prev => ({
       ...prev,
       strategies: prev.strategies.map((strategy, i) => 
@@ -234,7 +233,7 @@ export default function AutomatedTradingConfig() {
         description: 'As configurações do robô foram atualizadas.'
       });
       setLastSavedAt(Date.now());
-    } catch (error) {
+    } catch {
       toast.error('Erro ao salvar configuração', {
         description: 'Não foi possível salvar as configurações.'
       });

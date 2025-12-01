@@ -3,7 +3,7 @@ import { TradingEngine } from '../services/tradingEngine';
 import { ExchangeService } from '../services/exchangeService';
 import { SMCAnalyzer } from '../services/smcAnalyzer';
 import { RiskManager } from '../services/riskManager';
-import { ApiResponse, StrategyConfig, ExchangeConfig, RiskManagement } from '../../shared/types';
+import { ApiResponse, StrategyConfig, ExchangeConfig, RiskManagement, RiskStats, TradePosition, SMCAnalysis, TradingSignal, MarketData } from '../../shared/types';
 
 const router = Router();
 
@@ -52,8 +52,14 @@ router.get('/status', async (req, res) => {
     }
 
     const stats = tradingEngine!.getStats();
-    
-    const response: ApiResponse<any> = {
+    type StatusData = {
+      status: 'running' | 'stopped';
+      activeStrategies: number;
+      activePositions: number;
+      totalTrades: number;
+      riskStats: RiskStats;
+    };
+    const response: ApiResponse<StatusData> = {
       success: true,
       data: {
         status: stats.isRunning ? 'running' : 'stopped',
@@ -67,7 +73,7 @@ router.get('/status', async (req, res) => {
 
     res.json(response);
   } catch (error) {
-    const response: ApiResponse<any> = {
+    const response: ApiResponse<undefined> = {
       success: false,
       error: error instanceof Error ? error.message : 'Erro desconhecido',
       timestamp: Date.now()
@@ -89,7 +95,7 @@ router.post('/start', async (req, res) => {
 
     tradingEngine!.start();
     
-    const response: ApiResponse<any> = {
+    const response: ApiResponse<{ message: string }> = {
       success: true,
       data: { message: 'Motor de trading iniciado' },
       timestamp: Date.now()
@@ -97,7 +103,7 @@ router.post('/start', async (req, res) => {
 
     res.json(response);
   } catch (error) {
-    const response: ApiResponse<any> = {
+    const response: ApiResponse<undefined> = {
       success: false,
       error: error instanceof Error ? error.message : 'Erro desconhecido',
       timestamp: Date.now()
@@ -113,7 +119,7 @@ router.post('/start', async (req, res) => {
 router.post('/stop', async (req, res) => {
   try {
     if (!tradingEngine) {
-      const response: ApiResponse<any> = {
+      const response: ApiResponse<undefined> = {
         success: false,
         error: 'Motor não inicializado',
         timestamp: Date.now()
@@ -123,7 +129,7 @@ router.post('/stop', async (req, res) => {
 
     tradingEngine!.stop();
     
-    const response: ApiResponse<any> = {
+    const response: ApiResponse<{ message: string }> = {
       success: true,
       data: { message: 'Motor de trading parado' },
       timestamp: Date.now()
@@ -131,7 +137,7 @@ router.post('/stop', async (req, res) => {
 
     res.json(response);
   } catch (error) {
-    const response: ApiResponse<any> = {
+    const response: ApiResponse<undefined> = {
       success: false,
       error: error instanceof Error ? error.message : 'Erro desconhecido',
       timestamp: Date.now()
@@ -147,7 +153,7 @@ router.post('/stop', async (req, res) => {
 router.get('/positions', async (req, res) => {
   try {
     if (!tradingEngine) {
-      const response: ApiResponse<any> = {
+      const response: ApiResponse<undefined> = {
         success: false,
         error: 'Motor não inicializado',
         timestamp: Date.now()
@@ -156,8 +162,7 @@ router.get('/positions', async (req, res) => {
     }
 
     const positions = tradingEngine!.getActivePositions();
-    
-    const response: ApiResponse<any> = {
+    const response: ApiResponse<TradePosition[]> = {
       success: true,
       data: positions,
       timestamp: Date.now()
@@ -165,7 +170,7 @@ router.get('/positions', async (req, res) => {
 
     res.json(response);
   } catch (error) {
-    const response: ApiResponse<any> = {
+    const response: ApiResponse<undefined> = {
       success: false,
       error: error instanceof Error ? error.message : 'Erro desconhecido',
       timestamp: Date.now()
@@ -185,7 +190,7 @@ router.post('/positions/:id/close', async (req, res) => {
     // Implementar fechamento de posição
     // tradingEngine!.closePosition(id);
     
-    const response: ApiResponse<any> = {
+    const response: ApiResponse<{ message: string }> = {
       success: true,
       data: { message: `Posição ${id} fechada` },
       timestamp: Date.now()
@@ -193,7 +198,7 @@ router.post('/positions/:id/close', async (req, res) => {
 
     res.json(response);
   } catch (error) {
-    const response: ApiResponse<any> = {
+    const response: ApiResponse<undefined> = {
       success: false,
       error: error instanceof Error ? error.message : 'Erro desconhecido',
       timestamp: Date.now()
@@ -209,7 +214,7 @@ router.post('/positions/:id/close', async (req, res) => {
 router.get('/strategies', async (req, res) => {
   try {
     if (!tradingEngine) {
-      const response: ApiResponse<any> = {
+      const response: ApiResponse<undefined> = {
         success: false,
         error: 'Motor não inicializado',
         timestamp: Date.now()
@@ -218,8 +223,7 @@ router.get('/strategies', async (req, res) => {
     }
 
     const strategies = tradingEngine!.getStrategies();
-    
-    const response: ApiResponse<any> = {
+    const response: ApiResponse<StrategyConfig[]> = {
       success: true,
       data: strategies,
       timestamp: Date.now()
@@ -227,7 +231,7 @@ router.get('/strategies', async (req, res) => {
 
     res.json(response);
   } catch (error) {
-    const response: ApiResponse<any> = {
+    const response: ApiResponse<undefined> = {
       success: false,
       error: error instanceof Error ? error.message : 'Erro desconhecido',
       timestamp: Date.now()
@@ -250,7 +254,7 @@ router.post('/strategies', async (req, res) => {
 
     tradingEngine!.addStrategy(strategyConfig);
     
-    const response: ApiResponse<any> = {
+    const response: ApiResponse<{ message: string }> = {
       success: true,
       data: { message: 'Estratégia adicionada' },
       timestamp: Date.now()
@@ -258,7 +262,7 @@ router.post('/strategies', async (req, res) => {
 
     res.json(response);
   } catch (error) {
-    const response: ApiResponse<any> = {
+    const response: ApiResponse<undefined> = {
       success: false,
       error: error instanceof Error ? error.message : 'Erro desconhecido',
       timestamp: Date.now()
@@ -276,7 +280,7 @@ router.delete('/strategies/:name', async (req, res) => {
     const { name } = req.params;
     
     if (!tradingEngine) {
-      const response: ApiResponse<any> = {
+      const response: ApiResponse<undefined> = {
         success: false,
         error: 'Motor não inicializado',
         timestamp: Date.now()
@@ -286,7 +290,7 @@ router.delete('/strategies/:name', async (req, res) => {
 
     tradingEngine!.removeStrategy(name);
     
-    const response: ApiResponse<any> = {
+    const response: ApiResponse<{ message: string }> = {
       success: true,
       data: { message: `Estratégia ${name} removida` },
       timestamp: Date.now()
@@ -294,7 +298,7 @@ router.delete('/strategies/:name', async (req, res) => {
 
     res.json(response);
   } catch (error) {
-    const response: ApiResponse<any> = {
+    const response: ApiResponse<undefined> = {
       success: false,
       error: error instanceof Error ? error.message : 'Erro desconhecido',
       timestamp: Date.now()
@@ -322,8 +326,7 @@ router.get('/market-data/:symbol', async (req, res) => {
       timeframe as string,
       parseInt(limit as string)
     );
-    
-    const response: ApiResponse<any> = {
+    const response: ApiResponse<MarketData[]> = {
       success: true,
       data: marketData,
       timestamp: Date.now()
@@ -331,7 +334,7 @@ router.get('/market-data/:symbol', async (req, res) => {
 
     res.json(response);
   } catch (error) {
-    const response: ApiResponse<any> = {
+    const response: ApiResponse<undefined> = {
       success: false,
       error: error instanceof Error ? error.message : 'Erro desconhecido',
       timestamp: Date.now()
@@ -363,8 +366,13 @@ router.post('/analyze', async (req, res) => {
     
     // Gerar sinais
     const signals = smcAnalyzer!.generateSignals(analysis, ticker.last, timeframe);
-    
-    const response: ApiResponse<any> = {
+    type AnalyzeData = {
+      analysis: SMCAnalysis;
+      signals: TradingSignal[];
+      currentPrice: number;
+      timestamp: number;
+    };
+    const response: ApiResponse<AnalyzeData> = {
       success: true,
       data: {
         analysis,
@@ -377,7 +385,7 @@ router.post('/analyze', async (req, res) => {
 
     res.json(response);
   } catch (error) {
-    const response: ApiResponse<any> = {
+    const response: ApiResponse<undefined> = {
       success: false,
       error: error instanceof Error ? error.message : 'Erro desconhecido',
       timestamp: Date.now()
@@ -393,8 +401,7 @@ router.post('/analyze', async (req, res) => {
 router.get('/exchanges', async (req, res) => {
   try {
     const exchanges = ['binance', 'bybit', 'okx', 'kucoin'];
-    
-    const response: ApiResponse<any> = {
+    const response: ApiResponse<string[]> = {
       success: true,
       data: exchanges,
       timestamp: Date.now()
@@ -402,7 +409,7 @@ router.get('/exchanges', async (req, res) => {
 
     res.json(response);
   } catch (error) {
-    const response: ApiResponse<any> = {
+    const response: ApiResponse<undefined> = {
       success: false,
       error: error instanceof Error ? error.message : 'Erro desconhecido',
       timestamp: Date.now()
@@ -424,8 +431,7 @@ router.get('/symbols/:exchange', async (req, res) => {
     }
 
     const symbols = await exchangeService!.getSymbols(exchange);
-    
-    const response: ApiResponse<any> = {
+    const response: ApiResponse<string[]> = {
       success: true,
       data: symbols,
       timestamp: Date.now()
@@ -433,7 +439,7 @@ router.get('/symbols/:exchange', async (req, res) => {
 
     res.json(response);
   } catch (error) {
-    const response: ApiResponse<any> = {
+    const response: ApiResponse<undefined> = {
       success: false,
       error: error instanceof Error ? error.message : 'Erro desconhecido',
       timestamp: Date.now()
@@ -453,8 +459,7 @@ router.get('/risk-stats', async (req, res) => {
     }
 
     const stats = riskManager!.getRiskStats();
-    
-    const response: ApiResponse<any> = {
+    const response: ApiResponse<RiskStats> = {
       success: true,
       data: stats,
       timestamp: Date.now()
@@ -462,7 +467,7 @@ router.get('/risk-stats', async (req, res) => {
 
     res.json(response);
   } catch (error) {
-    const response: ApiResponse<any> = {
+    const response: ApiResponse<undefined> = {
       success: false,
       error: error instanceof Error ? error.message : 'Erro desconhecido',
       timestamp: Date.now()

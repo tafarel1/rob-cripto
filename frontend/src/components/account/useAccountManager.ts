@@ -137,7 +137,7 @@ export const useAccountManager = () => {
   useEffect(() => {
     const fetchServerState = async () => {
       try {
-        const response = await fetch('/api/account/state');
+        const response = await fetch(`${API_CONFIG.baseURL}/api/account/state`);
         if (!response.ok) return;
         const result = await response.json();
         if (result?.success && result.data) {
@@ -154,7 +154,7 @@ export const useAccountManager = () => {
             setRealAccount(prev => ({ ...prev, ...result.data.realAccount }));
           }
         }
-      } catch {}
+      } catch { void 0; }
     };
     fetchServerState();
   }, []);
@@ -174,7 +174,7 @@ export const useAccountManager = () => {
     setIsLoading(true);
     try {
       // Call API to switch mode
-      const response = await fetch('/api/account/switch-mode', {
+      const response = await fetch(`${API_CONFIG.baseURL}/api/account/switch-mode`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -227,7 +227,7 @@ export const useAccountManager = () => {
       }
 
       // Call API to switch mode
-      const response = await fetch('/api/account/switch-mode', {
+      const response = await fetch(`${API_CONFIG.baseURL}/api/account/switch-mode`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -300,7 +300,7 @@ export const useAccountManager = () => {
         currency: virtualAccount.currency,
       };
 
-      const response = await fetch('/api/account/virtual/reset', {
+      const response = await fetch(`${API_CONFIG.baseURL}/api/account/virtual/reset`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -329,7 +329,7 @@ export const useAccountManager = () => {
         localStorage.setItem('virtualAccount', JSON.stringify(nextAccount));
 
         try {
-          const engineResponse = await fetch('/api/automated-trading/reset', {
+          const engineResponse = await fetch(`${API_CONFIG.baseURL}/api/automated-trading/reset`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -367,7 +367,7 @@ export const useAccountManager = () => {
   // Get performance metrics
   const getPerformanceMetrics = async () => {
     try {
-      const response = await fetch(`/api/account/performance?mode=${currentMode}`);
+      const response = await fetch(`${API_CONFIG.baseURL}/api/account/performance?mode=${currentMode}`);
       if (!response.ok) {
         throw new Error('Failed to fetch performance metrics');
       }

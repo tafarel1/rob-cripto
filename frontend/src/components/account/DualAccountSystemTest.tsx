@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { API_CONFIG } from '@/lib/config';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -6,7 +7,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { 
   Play, 
-  Square, 
+  
   RefreshCw, 
   CheckCircle, 
   XCircle,
@@ -20,7 +21,7 @@ interface TestResult {
   test: string;
   status: 'pass' | 'fail' | 'pending';
   message: string;
-  details?: any;
+  details?: Record<string, unknown>;
 }
 
 export default function DualAccountSystemTest() {
@@ -74,7 +75,7 @@ export default function DualAccountSystemTest() {
 
   async function testAccountStateAPI(): Promise<TestResult> {
     try {
-      const response = await fetch('/api/account/state');
+      const response = await fetch(`${API_CONFIG.baseURL}/api/account/state`);
       const result = await response.json();
       
       if (result.success && result.data) {
@@ -164,7 +165,7 @@ export default function DualAccountSystemTest() {
         takeProfit: 46000
       };
 
-      const response = await fetch('/api/account/virtual/trade', {
+      const response = await fetch(`${API_CONFIG.baseURL}/api/account/virtual/trade`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -248,7 +249,7 @@ export default function DualAccountSystemTest() {
         entryPrice: 45000
       };
 
-      const response = await fetch('/api/account/virtual/trade', {
+      const response = await fetch(`${API_CONFIG.baseURL}/api/account/virtual/trade`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -279,7 +280,7 @@ export default function DualAccountSystemTest() {
 
   async function testTradeHistory(): Promise<TestResult> {
     try {
-      const response = await fetch('/api/account/trades');
+    const response = await fetch(`${API_CONFIG.baseURL}/api/account/trades`);
       const result = await response.json();
       
       if (result.success && Array.isArray(result.data)) {

@@ -1,4 +1,3 @@
-import ExchangeManager from '../exchange/ExchangeManager.js';
 
 class SMCAnalyzer {
   constructor(exchangeManager) {

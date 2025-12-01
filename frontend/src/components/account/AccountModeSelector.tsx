@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AlertCircle, Gamepad2, Zap, DollarSign, Shield, TrendingUp, Settings } from 'lucide-react';
-import { useAccountManager, ExchangeConfig } from './useAccountManager';
+import { useAccountManager } from './useAccountManager';
 import { toast } from 'sonner';
 
 interface AccountModeSelectorProps {
