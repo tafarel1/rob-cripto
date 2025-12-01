@@ -6,10 +6,9 @@ const app = express();
 
 // Exchange manager (modo simplificado compatível com Railway)
 const exchangeManager = new ExchangeManager();
-let exchangeInitialized = false;
 
 // Estado global do trading
-let tradingState = {
+const tradingState = {
   status: 'stopped',
   activeStrategies: 0,
   activePositions: 0,
@@ -83,7 +82,6 @@ app.get('/api/trading/positions', (req, res) => {
 app.post('/api/exchange/connect', async (req, res) => {
   try {
     const result = await exchangeManager.initialize();
-    exchangeInitialized = !!result.success;
     res.json({
       success: true,
       data: exchangeManager.getConnectionStatus(),
@@ -110,7 +108,6 @@ app.get('/api/exchange/status', (req, res) => {
 app.post('/api/exchange/disconnect', async (req, res) => {
   try {
     await exchangeManager.disconnect();
-    exchangeInitialized = false;
     res.json({
       success: true,
       data: exchangeManager.getConnectionStatus(),

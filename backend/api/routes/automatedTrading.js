@@ -7,6 +7,11 @@ import { asyncHandler } from '../../middleware/errorHandler.js';
 let tradingEngine = null;
 let engineConfig = null;
 
+export const resetEngineState = () => {
+  tradingEngine = null;
+  engineConfig = null;
+};
+
 // Initialize trading engine
 router.post('/initialize',
   asyncHandler(async (req, res) => {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { API_CONFIG } from '@/lib/config';
 
 interface ExchangeStatus {
@@ -35,17 +35,38 @@ export function useExchange() {
   const [positions, setPositions] = useState<Position[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    fetchExchangeStatus();
-    const interval = setInterval(fetchExchangeStatus, 30000); // Update every 30 seconds
-    return () => clearInterval(interval);
+  const fetchBalance = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_CONFIG.baseURL}${API_CONFIG.endpoints.exchange.balance}`);
+      const data = await response.json();
+      if (data.success) {
+        setBalance(data);
+      } else {
+        setBalance({ success: false, data: {}, error: data.error || 'Failed to fetch balance' });
+      }
+    } catch {
+      setBalance({ success: false, data: {}, error: 'Network error' });
+    }
   }, []);
 
-  const fetchExchangeStatus = async () => {
+  const fetchPositions = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_CONFIG.baseURL}${API_CONFIG.endpoints.exchange.positions}`);
+      const data = await response.json();
+      if (data.success) {
+        setPositions(data.data || []);
+      } else {
+        setPositions([]);
+      }
+    } catch {
+      setPositions([]);
+    }
+  }, []);
+
+  const fetchExchangeStatus = useCallback(async () => {
     try {
       const response = await fetch(`${API_CONFIG.baseURL}${API_CONFIG.endpoints.exchange.status}`);
       const data = await response.json();
-      
       if (data.success) {
         const s = data.data || {};
         const connected = !!s.isConnected;
@@ -55,63 +76,23 @@ export function useExchange() {
           status: connected ? 'connected' : (s.status === 'error' ? 'error' : 'disconnected'),
           lastUpdate: Date.now()
         });
-
-        // Fetch balance if connected
         if (connected) {
           fetchBalance();
           fetchPositions();
         }
       }
-    } catch (error) {
-      console.error('Error fetching exchange status:', error);
-      setExchangeStatus({
-        isConnected: false,
-        exchange: 'binance',
-        status: 'error',
-        lastUpdate: Date.now()
-      });
+    } catch {
+      setExchangeStatus({ isConnected: false, exchange: 'binance', status: 'error', lastUpdate: Date.now() });
     }
-  };
+  }, [fetchBalance, fetchPositions]);
 
-  const fetchBalance = async () => {
-    try {
-      const response = await fetch(`${API_CONFIG.baseURL}${API_CONFIG.endpoints.exchange.balance}`);
-      const data = await response.json();
-      
-      if (data.success) {
-        setBalance(data);
-      } else {
-        setBalance({
-          success: false,
-          data: {},
-          error: data.error || 'Failed to fetch balance'
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching balance:', error);
-      setBalance({
-        success: false,
-        data: {},
-        error: 'Network error'
-      });
-    }
-  };
+  useEffect(() => {
+    fetchExchangeStatus();
+    const interval = setInterval(fetchExchangeStatus, 30000);
+    return () => clearInterval(interval);
+  }, [fetchExchangeStatus]);
 
-  const fetchPositions = async () => {
-    try {
-      const response = await fetch(`${API_CONFIG.baseURL}${API_CONFIG.endpoints.exchange.positions}`);
-      const data = await response.json();
-      
-      if (data.success) {
-        setPositions(data.data || []);
-      } else {
-        setPositions([]);
-      }
-    } catch (error) {
-      console.error('Error fetching positions:', error);
-      setPositions([]);
-    }
-  };
+  
 
   const connect = async (apiKeys: { key: string; secret: string }) => {
     setIsLoading(true);

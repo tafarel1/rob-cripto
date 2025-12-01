@@ -3,18 +3,18 @@ import path from 'path';
 import cors from 'cors';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+import { createServer } from 'http';
+import { Server as SocketIOServer } from 'socket.io';
 import ExchangeManager from './src/exchange/ExchangeManager.js';
 import SMCAnalyzer from './src/analysis/SMCAnalyzer.js';
 import { 
   handleApiErrors, 
-  asyncHandler, 
-  validateRequestBody, 
   handleCorsErrors,
   ensureJsonResponse,
   requestLogger
 } from './middleware/errorHandler.js';
 import accountRoutes from './api/routes/account.js';
-import automatedTradingRoutes from './api/routes/automatedTrading.js';
+import automatedTradingRoutes, { resetEngineState } from './api/routes/automatedTrading.js';
 
 // Carregar variáveis de ambiente
 dotenv.config();
@@ -23,7 +23,19 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3000;
+const server = createServer(app);
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  'http://localhost:3000',
+  'http://localhost:5173'
+].filter(Boolean);
+const io = new SocketIOServer(server, {
+  cors: {
+    origin: allowedOrigins,
+    methods: ['GET', 'POST']
+  }
+});
 
 // Instanciar gerenciadores
 const exchangeManager = new ExchangeManager();
@@ -31,7 +43,7 @@ const smcAnalyzer = new SMCAnalyzer(exchangeManager);
 let exchangeInitialized = false;
 
 // Estado global do trading
-let tradingState = {
+const tradingState = {
   status: 'stopped',
   activeStrategies: 0,
   activePositions: 0,
@@ -75,12 +87,7 @@ app.use((req, res, next) => {
 
 // Middleware - CORS otimizado para Vercel
 app.use(cors({
-  origin: [
-    'https://*.vercel.app',
-    'http://localhost:3000',
-    'http://localhost:5173',
-    'https://cripto-bot-production.up.railway.app'
-  ],
+  origin: allowedOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -98,10 +105,23 @@ app.use(express.json());
 app.use(handleCorsErrors);
 
 // Servir arquivos estáticos do build do frontend
-app.use(express.static(path.join(__dirname, '../frontend/dist')));
+const SERVE_FRONTEND = process.env.SERVE_FRONTEND === 'true';
+if (SERVE_FRONTEND) {
+  app.use(express.static(path.join(__dirname, '../frontend/dist')));
+}
 
 // Automated Trading Routes
 app.use('/api/automated-trading', automatedTradingRoutes);
+
+app.post('/api/admin/reset-engine', (req, res) => {
+  resetEngineState();
+  tradingState.status = 'stopped';
+  res.json({
+    success: true,
+    data: { status: 'NOT_INITIALIZED' },
+    timestamp: Date.now()
+  });
+});
 
 // API Routes com estado dinâmico
 app.get('/api/trading/status', (req, res) => {
@@ -161,8 +181,8 @@ app.post('/api/trading/start', async (req, res) => {
       console.log(`✅ Análise SMC concluída: ${smcAnalysis.data.signals.length} sinais encontrados`);
     }
 
-    // Atualizar estado para running
-    tradingState.status = 'running';
+  // Atualizar estado para running
+  tradingState.status = 'running';
     tradingState.activeStrategies = 1;
     tradingState.activePositions = 0;
     tradingState.hibernationMode = false;
@@ -170,6 +190,7 @@ app.post('/api/trading/start', async (req, res) => {
     
     console.log('✅ Trading iniciado com sucesso - Exchange Real');
     
+    io.emit('engine:status', { status: tradingState.status, timestamp: Date.now() });
     res.json({
       success: true,
       message: 'Sistema iniciado com sucesso - Exchange Real',
@@ -210,6 +231,7 @@ app.post('/api/trading/stop', (req, res) => {
     tradingState.activeStrategies = 0;
     tradingState.activePositions = 0;
     
+    io.emit('engine:status', { status: tradingState.status, timestamp: Date.now() });
     res.json({
       success: true,
       message: 'Sistema parado com sucesso',
@@ -265,6 +287,12 @@ app.get('/api/health', (req, res) => {
     freeTier: {
       hibernationMode: tradingState.hibernationMode,
       status: tradingState.status
+    },
+    exchange: exchangeManager.getConnectionStatus(),
+    trading: {
+      status: tradingState.status,
+      activeStrategies: tradingState.activeStrategies,
+      activePositions: tradingState.activePositions
     }
   });
 });
@@ -505,7 +533,7 @@ app.post('/api/exchange/test-order', async (req, res) => {
     }
     
     const result = await exchangeManager.createOrder(symbol, type, side, amount, orderPrice);
-    
+    io.emit('trade:executed', { symbol, side, amount, price: orderPrice, timestamp: Date.now() });
     res.json({
       ...result,
       timestamp: Date.now()
@@ -771,7 +799,7 @@ async function runSpecificTest(testType) {
       };
       break;
       
-    case 'risk':
+    case 'risk': {
       const riskLevel = Math.random();
       test.status = riskLevel > 0.8 ? 'warning' : 'success';
       test.message = riskLevel > 0.8 ? 
@@ -783,6 +811,7 @@ async function runSpecificTest(testType) {
         status: riskLevel > 0.8 ? 'warning' : 'ok'
       };
       break;
+    }
       
     case 'notification':
       test.status = 'success';
@@ -804,15 +833,41 @@ async function runSpecificTest(testType) {
 }
 
 // Rota para servir o frontend (SPA) - DEVE SER A ÚLTIMA
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
-});
+if (SERVE_FRONTEND) {
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/dist', 'index.html'));
+  });
+} else {
+  app.get('*', (_req, res) => {
+    res.status(404).json({ success: false, error: 'Not Found' });
+  });
+}
 
 // Error handling - Use comprehensive API error handler
 app.use(handleApiErrors);
 
 // Iniciar servidor
-app.listen(PORT, () => {
+resetEngineState();
+
+io.on('connection', (_socket) => {
+});
+
+setInterval(async () => {
+  try {
+    const symbols = ['BTC/USDT', 'ETH/USDT'];
+    if (exchangeInitialized) {
+      for (const symbol of symbols) {
+        const ticker = await exchangeManager.getTicker(symbol);
+        if (ticker && ticker.success) {
+          io.emit('price:update', { symbol, price: ticker.data.last, timestamp: Date.now() });
+        }
+      }
+    }
+    io.emit('engine:status', { status: tradingState.status, timestamp: Date.now() });
+  } catch { void 0; }
+}, 3000);
+
+server.listen(PORT, () => {
   console.log(`🚀 Robo Cripto SMC rodando na porta ${PORT}`);
   console.log(`📊 Acesse: http://localhost:${PORT}`);
   console.log(`🔧 API disponível em: http://localhost:${PORT}/api/health`);

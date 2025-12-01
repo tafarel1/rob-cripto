@@ -335,7 +335,6 @@ export class RiskManager {
     }, 0);
 
     const maxRiskAmount = this.accountBalance * (this.config.maxRiskPerTrade / 100);
-    const usedRisk = this.openPositions.length * maxRiskAmount;
     const availableRisk = Math.max(0, (this.accountBalance * (this.config.maxDailyLoss / 100)) - this.dailyLoss);
 
     return {

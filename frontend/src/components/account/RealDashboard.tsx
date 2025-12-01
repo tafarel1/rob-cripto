@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
@@ -21,18 +20,6 @@ import { useAccountManager } from './useAccountManager';
 import { useExchange } from '@/hooks/useExchange';
 import { toast } from 'sonner';
 
-interface RealPosition {
-  id: string;
-  symbol: string;
-  side: 'buy' | 'sell';
-  amount: number;
-  entryPrice: number;
-  currentPrice: number;
-  unrealizedPnl: number;
-  stopLoss?: number;
-  takeProfit?: number;
-  timestamp: number;
-}
 
 interface RealPerformance {
   totalTrades: number;
@@ -81,16 +68,13 @@ export default function RealDashboard() {
     riskScore: 0
   });
 
-  const [isConnected, setIsConnected] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
 
   // Monitor real account connection
   useEffect(() => {
     if (exchangeStatus?.isConnected) {
-      setIsConnected(true);
       setConnectionStatus('connected');
     } else {
-      setIsConnected(false);
       setConnectionStatus('error');
     }
   }, [exchangeStatus]);
@@ -126,6 +110,12 @@ export default function RealDashboard() {
     }
   }, [balance, positions, realAccount.initialBalance, riskMetrics]);
 
+  const calculateRiskScore = useCallback((positions: number, exposure: number, maxExposure: number): number => {
+    const positionScore = (positions / realAccount.riskSettings.maxOpenTrades) * 50;
+    const exposureScore = (exposure / maxExposure) * 50;
+    return Math.min(100, positionScore + exposureScore);
+  }, [realAccount.riskSettings.maxOpenTrades]);
+
   // Update risk metrics
   useEffect(() => {
     if (positions) {
@@ -139,7 +129,7 @@ export default function RealDashboard() {
         riskScore: calculateRiskScore(openPositions, exposure, prev.maxExposure)
       }));
     }
-  }, [positions, riskMetrics.maxExposure]);
+  }, [positions, riskMetrics.maxExposure, calculateRiskScore]);
 
   const calculateRiskLevel = (metrics: RiskMetrics): 'low' | 'medium' | 'high' => {
     const positionRatio = metrics.openPositions / metrics.maxPositions;
@@ -150,15 +140,10 @@ export default function RealDashboard() {
     return 'low';
   };
 
-  const calculateRiskScore = (positions: number, exposure: number, maxExposure: number): number => {
-    const positionScore = (positions / realAccount.riskSettings.maxOpenTrades) * 50;
-    const exposureScore = (exposure / maxExposure) * 50;
-    return Math.min(100, positionScore + exposureScore);
-  };
 
   const handleTestConnection = async () => {
     try {
-      const response = await fetch('/api/exchange/status');
+      const response = await fetch(`${API_CONFIG.baseURL}/api/exchange/status`);
       const result = await response.json();
       
       if (result.success) {
@@ -170,7 +155,7 @@ export default function RealDashboard() {
           description: result.error || 'Não foi possível conectar à exchange.'
         });
       }
-    } catch (error) {
+    } catch {
       toast.error('Erro de conexão', {
         description: 'Verifique suas chaves API e tente novamente.'
       });
@@ -179,11 +164,11 @@ export default function RealDashboard() {
 
   const handleEmergencyStop = async () => {
     try {
-      const response = await fetch('/api/exchange/emergency-stop', {
+      const response = await fetch(`${API_CONFIG.baseURL}/api/exchange/emergency-stop`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-        },
+        }
       });
       
       if (response.ok) {
@@ -193,18 +178,18 @@ export default function RealDashboard() {
       } else {
         toast.error('Erro ao ativar parada de emergência');
       }
-    } catch (error) {
+    } catch {
       toast.error('Erro de conexão com o servidor');
     }
   };
 
   const handleCloseAllPositions = async () => {
     try {
-      const response = await fetch('/api/exchange/close-all', {
+      const response = await fetch(`${API_CONFIG.baseURL}/api/exchange/close-all`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-        },
+        }
       });
       
       if (response.ok) {
@@ -212,7 +197,7 @@ export default function RealDashboard() {
       } else {
         toast.error('Erro ao fechar posições');
       }
-    } catch (error) {
+    } catch {
       toast.error('Erro de conexão com o servidor');
     }
   };
@@ -505,3 +490,4 @@ export default function RealDashboard() {
     </div>
   );
 }
+import { API_CONFIG } from '@/lib/config';

@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { TrendingUp, Bot, Shield, Zap } from 'lucide-react';
+import { Bot, Shield, Zap } from 'lucide-react';
 
 export default function Home() {
   return (
@@ -42,14 +42,7 @@ export default function Home() {
             Maximize seus lucros com nosso robô de trading inteligente baseado em Smart Money Concepts (SMC). 
             Análise automatizada, gestão de risco integrada e execução precisa 24/7.
           </p>
-          <div className="flex justify-center space-x-4">
-            <Link to="/dual-dashboard">
-              <Button size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3">
-                <TrendingUp className="mr-2 h-5 w-5" />
-                Iniciar com Conta Demo
-              </Button>
-            </Link>
-            
+          <div className="flex justify-center">
           </div>
         </div>
       </section>
