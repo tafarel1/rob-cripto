@@ -1,4 +1,4 @@
-import { RiskManagement, TradePosition, TradingSignal, MarketData } from '../../shared/types';
+import { RiskManagement, TradePosition, TradingSignal, MarketData } from '../../../shared/types';
 
 export class RiskManager {
   private config: RiskManagement;
@@ -334,7 +334,6 @@ export class RiskManager {
       return total + positionValue;
     }, 0);
 
-    const maxRiskAmount = this.accountBalance * (this.config.maxRiskPerTrade / 100);
     const availableRisk = Math.max(0, (this.accountBalance * (this.config.maxDailyLoss / 100)) - this.dailyLoss);
 
     return {

@@ -277,11 +277,11 @@ export default function AutomatedTradingConfig() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 flex items-center">
+          <h2 className="text-2xl font-bold text-foreground flex items-center">
             <Settings className="w-6 h-6 mr-3" />
             Configuração do Robô de Trading
           </h2>
-          <p className="text-gray-600 mt-1">
+          <p className="text-muted-foreground mt-1">
             Configure os parâmetros do seu sistema de trading automático
           </p>
         </div>
@@ -548,10 +548,10 @@ export default function AutomatedTradingConfig() {
                       onClick={() => removeStrategy(index)}
                       variant="ghost"
                       size="sm"
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      Remover
-                    </Button>
+                      className="text-red-700 hover:text-red-800"
+                      >
+                       Remover
+                      </Button>
                   </div>
                 </div>
               </CardHeader>

@@ -60,10 +60,10 @@ export default function SystemValidationDemo() {
     switch (testType) {
       case 'connection': return 'text-blue-600';
       case 'analysis': return 'text-purple-600';
-      case 'order': return 'text-green-600';
+      case 'order': return 'text-green-700';
       case 'risk': return 'text-orange-600';
       case 'notification': return 'text-cyan-600';
-      default: return 'text-gray-600';
+      default: return 'text-muted-foreground';
     }
   };
 
@@ -162,14 +162,14 @@ export default function SystemValidationDemo() {
   const overallStatus = getOverallStatus();
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-background text-foreground p-6">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+          <h1 className="text-4xl font-bold mb-4">
             Sistema de Validação - Robô de Trading SMC
           </h1>
-          <p className="text-lg text-gray-600 mb-6">
+          <p className="text-lg text-muted-foreground mb-6">
             Demonstração completa do sistema conectado à exchange real em modo testnet
           </p>
           
@@ -180,8 +180,8 @@ export default function SystemValidationDemo() {
               overallStatus.status === 'failed' ? 'bg-red-500' : 'bg-yellow-500'
             }`}></div>
             <span className={`text-lg font-semibold ${
-              overallStatus.status === 'success' ? 'text-green-600' :
-              overallStatus.status === 'failed' ? 'text-red-600' : 'text-yellow-600'
+              overallStatus.status === 'success' ? 'text-green-700' :
+              overallStatus.status === 'failed' ? 'text-red-700' : 'text-yellow-600'
             }`}>
               {overallStatus.message}
             </span>
@@ -191,7 +191,7 @@ export default function SystemValidationDemo() {
             onClick={runSystemValidation}
             disabled={isRunningTests}
             size="lg"
-            className="bg-blue-600 hover:bg-blue-700"
+            className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600"
           >
             {isRunningTests ? (
               <>
@@ -219,11 +219,11 @@ export default function SystemValidationDemo() {
             <Card key={system.key} className="text-center">
               <CardContent className="pt-6">
                 <div className={`mx-auto mb-4 p-3 rounded-full ${
-                  systemStatus[system.key] ? `bg-${system.color}-100 text-${system.color}-600` : 'bg-gray-100 text-gray-400'
+                  systemStatus[system.key] ? `bg-${system.color}-100 text-${system.color}-700` : 'bg-secondary text-muted-foreground'
                 }`}>
                   {system.icon}
                 </div>
-                <h3 className="font-semibold text-gray-900 mb-2">{system.name}</h3>
+                <h3 className="font-semibold text-foreground mb-2">{system.name}</h3>
                 <Badge variant={systemStatus[system.key] ? 'default' : 'secondary'}>
                   {systemStatus[system.key] ? 'Operacional' : 'Aguardando'}
                 </Badge>
@@ -263,17 +263,17 @@ export default function SystemValidationDemo() {
                           </span>
                           {getStatusBadge(result.status)}
                         </div>
-                        <div className="text-xs text-gray-500 mt-1">
+                        <div className="text-xs text-muted-foreground mt-1">
                           {new Date(result.timestamp).toLocaleString('pt-BR')} • {formatDuration(result.duration)}
                         </div>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-sm text-gray-600">
+                      <div className="text-sm text-muted-foreground">
                         {result.message}
                       </div>
                       {result.details && (
-                        <div className="text-xs text-gray-500 mt-1">
+                        <div className="text-xs text-muted-foreground mt-1">
                           {JSON.stringify(result.details).substring(0, 50)}...
                         </div>
                       )}
@@ -295,7 +295,7 @@ export default function SystemValidationDemo() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3 text-sm text-gray-600">
+              <div className="space-y-3 text-sm text-muted-foreground">
                 <p>✅ Todas as operações são executadas na <strong>Binance Testnet</strong></p>
                 <p>✅ Capital virtual é utilizado para todos os testes</p>
                 <p>✅ Nenhum dinheiro real está em risco</p>
@@ -312,7 +312,7 @@ export default function SystemValidationDemo() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3 text-sm text-gray-600">
+              <div className="space-y-3 text-sm text-muted-foreground">
                 <p>📊 Análise SMC com <strong>dados de mercado reais</strong></p>
                 <p>📊 Preços em tempo real do Bitcoin e outras criptomoedas</p>
                 <p>📊 Sinais gerados com base em condições reais de mercado</p>

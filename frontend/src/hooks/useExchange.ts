@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { API_CONFIG } from '@/lib/config';
+import { normalizeExchangeStatus, normalizeBalance } from './exchange-utils'
 
 interface ExchangeStatus {
   isConnected: boolean;
@@ -39,11 +40,7 @@ export function useExchange() {
     try {
       const response = await fetch(`${API_CONFIG.baseURL}${API_CONFIG.endpoints.exchange.balance}`);
       const data = await response.json();
-      if (data.success) {
-        setBalance(data);
-      } else {
-        setBalance({ success: false, data: {}, error: data.error || 'Failed to fetch balance' });
-      }
+      setBalance(normalizeBalance(data))
     } catch {
       setBalance({ success: false, data: {}, error: 'Network error' });
     }
@@ -68,15 +65,10 @@ export function useExchange() {
       const response = await fetch(`${API_CONFIG.baseURL}${API_CONFIG.endpoints.exchange.status}`);
       const data = await response.json();
       if (data.success) {
-        const s = data.data || {};
-        const connected = !!s.isConnected;
-        setExchangeStatus({
-          isConnected: connected,
-          exchange: s.exchange || 'binance',
-          status: connected ? 'connected' : (s.status === 'error' ? 'error' : 'disconnected'),
-          lastUpdate: Date.now()
-        });
-        if (connected) {
+        const sRaw = data.data || {}
+        const normalized = normalizeExchangeStatus(sRaw, Date.now())
+        setExchangeStatus(normalized)
+        if (normalized.isConnected) {
           fetchBalance();
           fetchPositions();
         }

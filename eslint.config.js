@@ -9,7 +9,9 @@ export default tseslint.config(
     ignores: [
       'dist',
       'frontend/dist/**',
+      'frontend/coverage/**',
       'backend/**/dist/**',
+      'backend/coverage/**',
       '**/node_modules/**',
       '**/build/**'
     ]
@@ -69,7 +71,7 @@ export default tseslint.config(
       globals: globals.node,
     },
     rules: {
-      'no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      'no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
       '@typescript-eslint/no-require-imports': 'off',
       'no-console': 'off'
     }

@@ -1,4 +1,4 @@
-import { MarketData, LiquidityZone, OrderBlock, FairValueGap, MarketStructure, SMCAnalysis, TradingSignal } from '../../shared/types';
+import { MarketData, LiquidityZone, OrderBlock, FairValueGap, MarketStructure, SMCAnalysis, TradingSignal } from '../../../shared/types';
 
 export class SMCAnalyzer {
   private minLiquidityStrength: number = 0.7;
@@ -202,10 +202,27 @@ export class SMCAnalyzer {
     const bosChoch: MarketStructure[] = [];
     let lastHigh = 0;
     let lastLow = Infinity;
+    let prevDirection: 'bullish' | 'bearish' | null = null;
 
     structures.forEach(structure => {
+      if (prevDirection && structure.direction !== prevDirection) {
+        bosChoch.push({
+          type: 'CHOCH',
+          price: structure.price,
+          timestamp: structure.timestamp,
+          direction: structure.direction
+        });
+      }
       if (structure.type === 'HH') {
         if (structure.price > lastHigh) {
+          if (prevDirection === 'bearish') {
+            bosChoch.push({
+              type: 'CHOCH',
+              price: structure.price,
+              timestamp: structure.timestamp,
+              direction: 'bullish'
+            });
+          }
           bosChoch.push({
             type: 'BOS',
             price: structure.price,
@@ -214,8 +231,17 @@ export class SMCAnalyzer {
           });
         }
         lastHigh = structure.price;
+        prevDirection = 'bullish';
       } else if (structure.type === 'LL') {
         if (structure.price < lastLow) {
+          if (prevDirection === 'bullish') {
+            bosChoch.push({
+              type: 'CHOCH',
+              price: structure.price,
+              timestamp: structure.timestamp,
+              direction: 'bearish'
+            });
+          }
           bosChoch.push({
             type: 'BOS',
             price: structure.price,
@@ -224,6 +250,9 @@ export class SMCAnalyzer {
           });
         }
         lastLow = structure.price;
+        prevDirection = 'bearish';
+      } else {
+        prevDirection = structure.direction;
       }
     });
 
@@ -398,6 +427,10 @@ export class SMCAnalyzer {
     }
 
     return signals;
+  }
+
+  debugBOSCHOCH(structures: MarketStructure[]): MarketStructure[] {
+    return this.detectBOSAndCHOCH(structures);
   }
 
   /**

@@ -5,13 +5,9 @@
  * Este script ajuda a configurar as variáveis de ambiente e testar as conexões
  */
 
-import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 console.log('🤖 Configurador do Robô Cripto');
 console.log('=====================================\n');

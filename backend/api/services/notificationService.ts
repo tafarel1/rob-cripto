@@ -1,10 +1,10 @@
 import TelegramBot from 'node-telegram-bot-api';
 import nodemailer from 'nodemailer';
-import { TradePosition, TradingSignal, SMCAnalysis } from '../../shared/types';
+import { TradePosition, TradingSignal, SMCAnalysis } from '../../../shared/types';
 
 export class NotificationService {
-  private telegramBot: TelegramBot | null = null;
-  private emailTransporter: nodemailer.Transporter | null = null;
+  private telegramBot: { sendMessage: (chatId: string, message: string, options?: { parse_mode?: string; disable_web_page_preview?: boolean }) => Promise<unknown> } | null = null;
+  private emailTransporter: { sendMail: (options: { from: string; to: string; subject: string; text?: string; html?: string }) => Promise<unknown> } | null = null;
   private telegramChatId: string | null = null;
 
   constructor() {
@@ -143,7 +143,7 @@ ${emoji} *${direction}*
 📊 *Detalhes do Sinal:*
 💰 Preço de Entrada: $${signal.entryPrice.toFixed(4)}
 🛑 Stop Loss: $${signal.stopLoss.toFixed(4)}
-🎯 Take Profit: ${signal.takeProfit.map(tp => `$${tp.toFixed(4)}`).join(', ')}
+🎯 Take Profit: ${signal.takeProfit.map((tp: number) => `$${tp.toFixed(4)}`).join(', ')}
 📈 Confiança: ${(signal.confidence * 100).toFixed(1)}%
 📝 Razão: ${signal.reason}
 ⏰ Timeframe: ${signal.timeframe}
@@ -176,7 +176,7 @@ ${emoji} *${direction}*
 💵 Preço de Entrada: $${position.entryPrice.toFixed(4)}
 📦 Quantidade: ${position.quantity.toFixed(6)}
 🛑 Stop Loss: $${position.stopLoss.toFixed(4)}
-🎯 Take Profit: ${position.takeProfit.map(tp => `$${tp.toFixed(4)}`).join(', ')}
+🎯 Take Profit: ${position.takeProfit.map((tp: number) => `$${tp.toFixed(4)}`).join(', ')}
 📈 Confiança do Sinal: ${(signal.confidence * 100).toFixed(1)}%
 📝 Razão: ${signal.reason}
 
@@ -309,14 +309,15 @@ ${emoji} *Resultado do Dia:*
       return;
     }
 
-    const toEmail = process.env.EMAIL_USER;
-    if (!toEmail) {
+    const toEmail = process.env.EMAIL_USER ?? '';
+    const fromEmail = process.env.EMAIL_USER ?? '';
+    if (!toEmail || !fromEmail) {
       return;
     }
 
     try {
       await this.emailTransporter.sendMail({
-        from: process.env.EMAIL_USER,
+        from: fromEmail,
         to: toEmail,
         subject: `Robo Cripto - ${subject}`,
         text: content,
@@ -352,9 +353,13 @@ ${emoji} *Resultado do Dia:*
     // Testar Email
     if (this.emailTransporter) {
       try {
+        const user = process.env.EMAIL_USER ?? '';
+        if (!user) {
+          return results;
+        }
         await this.emailTransporter.sendMail({
-          from: process.env.EMAIL_USER,
-          to: process.env.EMAIL_USER,
+          from: user,
+          to: user,
           subject: 'Teste - Robo Cripto',
           text: '🔧 Teste de notificação Email - Robo Cripto'
         });

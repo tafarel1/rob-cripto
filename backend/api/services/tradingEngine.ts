@@ -10,7 +10,7 @@ import {
   ExchangeConfig,
   RiskManagement,
   RiskStats
-} from '../../shared/types';
+} from '../../../shared/types';
 import { v4 as uuidv4 } from 'uuid';
 
 export class TradingEngine {

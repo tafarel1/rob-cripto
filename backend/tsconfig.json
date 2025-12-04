@@ -9,9 +9,14 @@
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "types": ["node"],
+    "typeRoots": [
+      "./node_modules/@types",
+      "../node_modules/@types"
+    ],
     "baseUrl": "./"
   },
   "include": [
-    "api/**/*.ts"
+    "api/**/*.ts",
+    "types/**/*.d.ts"
   ]
 }

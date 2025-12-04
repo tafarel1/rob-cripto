@@ -31,6 +31,8 @@ import { toast } from 'sonner';
 import { useAccountManager } from '@/components/account/useAccountManager';
 import AutomatedTradingConfig from './AutomatedTradingConfig';
 import { useExchange } from '@/hooks/useExchange';
+import ThemeToggle from '@/components/ui/ThemeToggle';
+ 
 
 interface EngineStatus {
   status: 'NOT_INITIALIZED' | 'RUNNING' | 'STOPPED' | 'EMERGENCY_STOPPED';
@@ -94,13 +96,14 @@ export default function AutomatedTradingDashboard() {
   const [engineStatus, setEngineStatus] = useState<EngineStatus | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
-  
+ 
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [preserveSettings, setPreserveSettings] = useState(true);
   const [isResetting, setIsResetting] = useState(false);
   const { balance, exchangeStatus, connect, disconnect, isLoading: isConnLoading } = useExchange();
+  
 
   // Fetch engine status
   const fetchEngineStatus = useCallback(async () => {
@@ -395,21 +398,21 @@ export default function AutomatedTradingDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-background text-foreground p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center">
+            <h1 className="text-3xl font-bold flex items-center">
               <Bot className="w-8 h-8 mr-3 text-blue-600" />
               Trading Automático
             </h1>
-            <p className="text-gray-600 mt-1">
+            <p className="text-muted-foreground mt-1">
               Robô de trading inteligente com Smart Money Concepts
             </p>
           </div>
         <div className="flex items-center space-x-4">
-          <Badge variant="outline" className={currentMode === 'VIRTUAL' ? 'border-green-200 text-green-700' : 'border-blue-200 text-blue-700'}>
+          <Badge variant="outline" className={currentMode === 'VIRTUAL' ? 'border-green-200 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'border-blue-200 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'}>
             {currentMode === 'VIRTUAL' ? '🎮 MODO DEMO' : '⚡ MODO REAL'}
           </Badge>
           {engineStatus && (
@@ -430,10 +433,11 @@ export default function AutomatedTradingDashboard() {
               Dual Dashboard
             </Button>
           </Link>
-          <Button onClick={exportCsv} variant="outline">
+          <Button onClick={exportCsv} className="bg-purple-600 hover:bg-purple-700 text-white">
             <FileDown className="w-4 h-4 mr-2" />
             Exportar CSV
           </Button>
+          <ThemeToggle />
         </div>
         </div>
 
@@ -487,7 +491,7 @@ export default function AutomatedTradingDashboard() {
                       )}
                       Inicializar Sistema
                     </Button>
-                    <p className="text-xs text-gray-500 text-center">
+                    <p className="text-xs text-muted-foreground text-center">
                       Configurar motor de trading
                     </p>
                   </div>
@@ -523,7 +527,7 @@ export default function AutomatedTradingDashboard() {
                         Iniciar Robô
                       </Button>
                     )}
-                    <p className="text-xs text-gray-500 text-center">
+                    <p className="text-xs text-muted-foreground text-center">
                       {engineStatus?.status === 'RUNNING' ? 'Robô operando' : 'Iniciar trading automático'}
                     </p>
                   </div>
@@ -544,7 +548,7 @@ export default function AutomatedTradingDashboard() {
                       )}
                       Emergência
                     </Button>
-                    <p className="text-xs text-gray-500 text-center">
+                    <p className="text-xs text-muted-foreground text-center">
                       Parar imediatamente e fechar posições
                     </p>
                   </div>
@@ -569,7 +573,7 @@ export default function AutomatedTradingDashboard() {
                       )}
                       Resetar Conta Virtual
                     </Button>
-                    <p className="text-xs text-gray-500 text-center">
+                    <p className="text-xs text-muted-foreground text-center">
                       Restaurar saldo e limpar histórico
                     </p>
                   </div>
@@ -577,9 +581,9 @@ export default function AutomatedTradingDashboard() {
 
                 {/* Auto Refresh Toggle */}
                 <div className="flex items-center justify-between mt-4 pt-4 border-t">
-                  <div className="flex items-center space-x-2">
-                    <Activity className="w-4 h-4 text-gray-500" />
-                    <span className="text-sm text-gray-600">Atualização automática</span>
+                <div className="flex items-center space-x-2">
+                    <Activity className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Atualização automática</span>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
@@ -596,23 +600,23 @@ export default function AutomatedTradingDashboard() {
 
           {showResetConfirm && (
             <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-              <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900">Confirmar reset da conta virtual</h3>
-                <div className="text-sm text-gray-700 space-y-2">
+              <div className="bg-card text-card-foreground rounded-lg shadow-xl w-full max-w-md p-6 space-y-4">
+                <h3 className="text-lg font-semibold">Confirmar reset da conta virtual</h3>
+                <div className="text-sm text-muted-foreground space-y-2">
                   <div className="flex items-center justify-between">
                     <span>Saldo virtual</span>
-                    <span className="font-medium text-gray-900">$10.000</span>
+                    <span className="font-medium text-foreground">$10.000</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span>Histórico de trades</span>
-                    <span className="text-gray-900">Será limpo</span>
+                    <span className="text-foreground">Será limpo</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span>Métricas de performance</span>
-                    <span className="text-gray-900">Zeradas</span>
+                    <span className="text-foreground">Zeradas</span>
                   </div>
                 </div>
-                <label className="flex items-center space-x-2 text-sm text-gray-700">
+                <label className="flex items-center space-x-2 text-sm text-muted-foreground">
                   <input
                     type="checkbox"
                     checked={preserveSettings}
@@ -655,8 +659,8 @@ export default function AutomatedTradingDashboard() {
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-gray-600">Equity</p>
-                      <p className="text-2xl font-bold text-green-600">${equity.toLocaleString()}</p>
+                      <p className="text-sm font-medium text-muted-foreground">Equity</p>
+                      <p className="text-2xl font-bold text-green-700">${equity.toLocaleString()}</p>
                     </div>
                     <DollarSign className="w-8 h-8 text-green-500" />
                   </div>
@@ -666,7 +670,7 @@ export default function AutomatedTradingDashboard() {
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-gray-600">P&L (Dia / Total)</p>
+                      <p className="text-sm font-medium text-muted-foreground">P&L (Dia / Total)</p>
                       <p className="text-2xl font-bold text-purple-600">${dailyPnl.toFixed(2)} / ${totalPnl.toFixed(2)}</p>
                     </div>
                     <TrendingUp className="w-8 h-8 text-purple-500" />
@@ -677,8 +681,8 @@ export default function AutomatedTradingDashboard() {
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-gray-600">Exposição Líquida</p>
-                      <p className={`text-2xl font-bold ${Math.abs(netExposure) > (equity * 0.8) ? 'text-red-600' : 'text-orange-600'}`}>${netExposure.toFixed(2)}</p>
+                      <p className="text-sm font-medium text-muted-foreground">Exposição Líquida</p>
+                      <p className={`text-2xl font-bold ${Math.abs(netExposure) > (equity * 0.8) ? 'text-red-700' : 'text-orange-600'}`}>${netExposure.toFixed(2)}</p>
                     </div>
                     <Target className="w-8 h-8 text-orange-500" />
                   </div>
@@ -688,10 +692,10 @@ export default function AutomatedTradingDashboard() {
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-gray-600">Conexão</p>
-                      <p className="text-2xl font-bold text-gray-800">{exchangeStatus?.isConnected ? 'Conectado' : 'Desconectado'}</p>
+                      <p className="text-sm font-medium text-muted-foreground">Conexão</p>
+                      <p className="text-2xl font-bold text-foreground">{exchangeStatus?.isConnected ? 'Conectado' : 'Desconectado'}</p>
                     </div>
-                    <Clock className="w-8 h-8 text-gray-500" />
+                    <Clock className="w-8 h-8 text-muted-foreground" />
                   </div>
                   <div className="mt-3 flex space-x-3">
                     <Button
@@ -780,11 +784,11 @@ export default function AutomatedTradingDashboard() {
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between">
                     <span>Spread</span>
-                    <Badge variant="outline" className="bg-gray-50">Mercado: {spreadMetrics.marketSpread ?? 'N/A'} • Robô: {spreadMetrics.botSpread ?? 'N/A'}</Badge>
+                    <Badge variant="outline" className="bg-card">Mercado: {spreadMetrics.marketSpread ?? 'N/A'} • Robô: {spreadMetrics.botSpread ?? 'N/A'}</Badge>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-40 bg-white border rounded flex items-center justify-center text-gray-400">Gráfico de Spread</div>
+                  <div className="h-40 bg-card border rounded flex items-center justify-center text-muted-foreground">Gráfico de Spread</div>
                 </CardContent>
               </Card>
               <Card>
@@ -795,7 +799,7 @@ export default function AutomatedTradingDashboard() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-40 bg-white border rounded flex items-center justify-center text-gray-400">Gráfico de Equity</div>
+                  <div className="h-40 bg-card border rounded flex items-center justify-center text-muted-foreground">Gráfico de Equity</div>
                 </CardContent>
               </Card>
               <Card>
@@ -807,12 +811,12 @@ export default function AutomatedTradingDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div className="p-3 bg-gray-50 rounded">
-                      <p className="text-gray-600">BTC</p>
+                    <div className="p-3 bg-secondary rounded">
+                      <p className="text-muted-foreground">BTC</p>
                       <p className="font-semibold">{balance?.data?.free?.BTC?.toFixed(6) ?? 'N/A'}</p>
                     </div>
-                    <div className="p-3 bg-gray-50 rounded">
-                      <p className="text-gray-600">USDT</p>
+                    <div className="p-3 bg-secondary rounded">
+                      <p className="text-muted-foreground">USDT</p>
                       <p className="font-semibold">{balance?.data?.free?.USDT?.toFixed(2) ?? 'N/A'}</p>
                     </div>
                   </div>
@@ -829,15 +833,15 @@ export default function AutomatedTradingDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="p-4 rounded-lg border bg-red-50">
-                    <p className="text-sm text-red-600">Exposição acima do limite</p>
+                  <div className="p-4 rounded-lg border bg-red-50 dark:bg-red-900/20">
+                    <p className="text-sm text-red-700">Exposição acima do limite</p>
                     <Progress value={Math.min(100, Math.abs(netExposure) / (equity || 1) * 100)} />
                   </div>
-                  <div className="p-4 rounded-lg border bg-yellow-50">
+                  <div className="p-4 rounded-lg border bg-yellow-50 dark:bg-yellow-900/20">
                     <p className="text-sm text-yellow-600">Drawdown</p>
                     <Progress value={Math.min(100, (engineStatus?.engineStats?.riskStats?.drawdown || 0) * 100)} />
                   </div>
-                  <div className="p-4 rounded-lg border bg-purple-50">
+                  <div className="p-4 rounded-lg border bg-purple-50 dark:bg-purple-900/20">
                     <p className="text-sm text-purple-600">Fill Rate</p>
                     <Progress value={Math.min(100, (engineStatus?.engineStats?.riskStats?.fillRate || 0) * 100)} />
                   </div>
@@ -860,28 +864,28 @@ export default function AutomatedTradingDashboard() {
                 <CardContent>
                   <div className="space-y-4">
                     {engineStatus.activePositions.map((position: Position) => (
-                      <div key={position.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                      <div key={position.id} className="flex items-center justify-between p-4 bg-secondary rounded-lg">
                         <div className="flex items-center space-x-4">
                           <div className={`w-3 h-3 rounded-full ${position.type === 'LONG' ? 'bg-green-500' : 'bg-red-500'}`}></div>
                           <div>
                             <p className="font-medium">{position.symbol}</p>
-                            <p className="text-sm text-gray-600">{position.type}</p>
+                            <p className="text-sm text-white">{position.type}</p>
                           </div>
                         </div>
                         <div className="text-right">
                           <p className="font-medium">${position.entryPrice.toLocaleString()}</p>
-                          <p className="text-sm text-gray-600">Entry</p>
+                          <p className="text-sm text-white">Entry</p>
                         </div>
                         <div className="text-right">
                           <p className="font-medium">{position.quantity}</p>
-                          <p className="text-sm text-gray-600">Quantidade</p>
+                          <p className="text-sm text-white">Quantidade</p>
                         </div>
                         {position.unrealizedPnl !== undefined && (
                           <div className="text-right">
-                            <p className={`font-medium ${position.unrealizedPnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            <p className={`font-medium ${position.unrealizedPnl >= 0 ? 'text-green-700' : 'text-red-700'}`}>
                               ${position.unrealizedPnl.toFixed(2)}
                             </p>
-                            <p className="text-sm text-gray-600">PnL</p>
+                            <p className="text-sm text-white">PnL</p>
                           </div>
                         )}
                       </div>
@@ -903,12 +907,12 @@ export default function AutomatedTradingDashboard() {
                 <CardContent>
                   <div className="space-y-3">
                     {engineStatus.strategies.map((strategy: Strategy, index: number) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div key={index} className="flex items-center justify-between p-3 bg-secondary rounded-lg">
                         <div className="flex items-center space-x-3">
                           <div className={`w-2 h-2 rounded-full ${strategy.enabled ? 'bg-green-500' : 'bg-gray-400'}`}></div>
                           <div>
                             <p className="font-medium">{strategy.name}</p>
-                            <p className="text-sm text-gray-600">{strategy.symbol} • {strategy.timeframe}</p>
+                            <p className="text-sm text-muted-foreground">{strategy.symbol} • {strategy.timeframe}</p>
                           </div>
                         </div>
                         <Badge variant={strategy.enabled ? 'default' : 'secondary'}>
@@ -933,25 +937,25 @@ export default function AutomatedTradingDashboard() {
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <div>
-                      <p className="text-gray-600">Última Atualização</p>
+                      <p className="text-muted-foreground">Última Atualização</p>
                       <p className="font-medium">
                         {engineStatus.timestamp ? new Date(engineStatus.timestamp).toLocaleString('pt-BR') : 'N/A'}
                       </p>
                     </div>
                     <div>
-                      <p className="text-gray-600">Modo de Conta</p>
+                      <p className="text-muted-foreground">Modo de Conta</p>
                       <p className="font-medium">
                         {currentMode === 'VIRTUAL' ? 'Demo Virtual' : 'Conta Real'}
                       </p>
                     </div>
                     <div>
-                      <p className="text-gray-600">Saldo Disponível</p>
+                      <p className="text-muted-foreground">Saldo Disponível</p>
                       <p className="font-medium">
                         ${(currentMode === 'VIRTUAL' ? virtualAccount.balance : realAccount.balance).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                       </p>
                     </div>
                     <div>
-                      <p className="text-gray-600">Tempo de Atividade</p>
+                      <p className="text-muted-foreground">Tempo de Atividade</p>
                       <p className="font-medium">
                         {engineStatus.uptime ? `${Math.floor(engineStatus.uptime / 3600)}h ${Math.floor((engineStatus.uptime % 3600) / 60)}m` : 'N/A'}
                       </p>

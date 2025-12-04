@@ -88,7 +88,7 @@ export class SimpleTradingEngine {
   }
 
   async analyzeStrategy(config) {
-    const { symbol, timeframe, smcParams } = config;
+    const { symbol, timeframe } = config;
 
     try {
       console.log(`🔍 Analisando ${symbol} no timeframe ${timeframe}...`);
@@ -155,7 +155,7 @@ export class SimpleTradingEngine {
     };
   }
 
-  generateSignals(analysis, currentPrice, config) {
+  generateSignals(analysis, currentPrice) {
     const signals = [];
     
     // Gerar sinais baseados na análise SMC simulada
@@ -187,7 +187,7 @@ export class SimpleTradingEngine {
     return signals;
   }
 
-  generateSignalReason(analysis, signalType) {
+  generateSignalReason(_analysis, _signalType) {
     const reasons = [
       'Liquidity zone breakout',
       'Order block rejection',
@@ -295,10 +295,7 @@ export class SimpleTradingEngine {
     const priceVariation = (Math.random() - 0.5) * 0.02; // ±1% variação
     const currentPrice = position.entryPrice * (1 + priceVariation);
 
-    // Calcular PnL não realizado
-    const unrealizedPnl = position.type === 'LONG'
-      ? (currentPrice - position.entryPrice) * position.quantity
-      : (position.entryPrice - currentPrice) * position.quantity;
+    // Calcular PnL não realizado (omitido quando não utilizado)
 
     // Verificar se deve fechar a posição
     const shouldClose = this.shouldClosePosition(position, currentPrice);

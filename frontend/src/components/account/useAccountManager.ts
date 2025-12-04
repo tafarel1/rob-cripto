@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
+import { API_CONFIG } from '@/lib/config';
 
 export type AccountMode = 'VIRTUAL' | 'REAL';
 

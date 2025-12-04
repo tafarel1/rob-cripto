@@ -1,5 +1,5 @@
 import * as ccxt from 'ccxt';
-import { ExchangeConfig, MarketData, ExchangeOrder } from '../../shared/types';
+import { ExchangeConfig, MarketData, ExchangeOrder } from '../../../shared/types';
 
 export class ExchangeService {
   private exchanges: Map<string, ccxt.Exchange> = new Map();
@@ -58,14 +58,13 @@ export class ExchangeService {
 
     try {
       const ohlcv = await exchange.fetchOHLCV(symbol, timeframe, since, limit);
-      
       return ohlcv.map(candle => ({
-        timestamp: candle[0],
-        open: candle[1],
-        high: candle[2],
-        low: candle[3],
-        close: candle[4],
-        volume: candle[5]
+        timestamp: Number(candle[0] ?? Date.now()),
+        open: Number(candle[1] ?? 0),
+        high: Number(candle[2] ?? 0),
+        low: Number(candle[3] ?? 0),
+        close: Number(candle[4] ?? 0),
+        volume: Number(candle[5] ?? 0)
       }));
     } catch (error) {
       console.error(`Erro ao obter dados de mercado de ${exchangeName}:`, error);
@@ -91,14 +90,14 @@ export class ExchangeService {
 
     try {
       const ticker = await exchange.fetchTicker(symbol);
-      
+      const ts = typeof ticker.timestamp === 'number' ? ticker.timestamp : Date.now();
       return {
-        symbol: ticker.symbol,
-        bid: ticker.bid,
-        ask: ticker.ask,
-        last: ticker.last,
-        volume: ticker.baseVolume,
-        timestamp: ticker.timestamp
+        symbol: String(ticker.symbol),
+        bid: Number(ticker.bid ?? 0),
+        ask: Number(ticker.ask ?? 0),
+        last: Number(ticker.last ?? 0),
+        volume: Number(ticker.baseVolume ?? ticker.quoteVolume ?? 0),
+        timestamp: Number(ts)
       };
     } catch (error) {
       console.error(`Erro ao obter ticker de ${exchangeName}:`, error);
@@ -234,12 +233,16 @@ export class ExchangeService {
       const result: Record<string, { free: number; used: number; total: number }> = {};
       
       Object.keys(balance).forEach(currency => {
-        if (balance[currency].total > 0) {
-          result[currency] = {
-            free: balance[currency].free,
-            used: balance[currency].used,
-            total: balance[currency].total
-          };
+        const entry = (balance as Record<string, unknown>)[currency] as
+          | { total?: number; free?: number; used?: number }
+          | undefined;
+        if (entry && typeof entry === 'object') {
+          const total = Number(entry.total ?? 0);
+          const free = Number(entry.free ?? 0);
+          const used = Number(entry.used ?? 0);
+          if (total > 0 || free > 0 || used > 0) {
+            result[currency] = { free, used, total };
+          }
         }
       });
 
@@ -271,33 +274,32 @@ export class ExchangeService {
   /**
    * Mapeia ordem da exchange para nosso formato
    */
-  private mapExchangeOrder(order: {
-    id: string;
-    symbol: string;
-    side: 'buy' | 'sell';
-    type: string;
-    amount: number;
-    price?: number;
-    stopPrice?: number;
-    status: string;
-    filled: number;
-    average?: number;
-    timestamp: number;
-    lastTradeTimestamp?: number;
-  }): ExchangeOrder {
+  private mapExchangeOrder(order: ccxt.Order): ExchangeOrder {
+    const side: 'buy' | 'sell' = order.side === 'buy' ? 'buy' : 'sell';
+    const type: 'market' | 'limit' | 'stop' =
+      order.type === 'market' || order.type === 'limit' || order.type === 'stop'
+        ? (order.type as 'market' | 'limit' | 'stop')
+        : 'limit';
+    const status: 'open' | 'closed' | 'cancelled' =
+      order.status === 'open' || order.status === 'closed'
+        ? (order.status as 'open' | 'closed')
+        : 'cancelled'; // map 'canceled' -> 'cancelled'
+    const createdAt = typeof order.timestamp === 'number' ? order.timestamp : Date.now();
+    const updatedAt = typeof order.lastTradeTimestamp === 'number' ? order.lastTradeTimestamp : createdAt;
+
     return {
-      id: order.id,
-      symbol: order.symbol,
-      side: order.side,
-      type: order.type,
-      quantity: order.amount,
-      price: order.price,
-      stopPrice: order.stopPrice,
-      status: order.status,
-      filledQuantity: order.filled,
-      averagePrice: order.average,
-      createdAt: order.timestamp,
-      updatedAt: order.lastTradeTimestamp || order.timestamp
+      id: String(order.id),
+      symbol: String(order.symbol),
+      side,
+      type,
+      quantity: Number(order.amount ?? 0),
+      price: typeof order.price === 'number' ? order.price : undefined,
+      stopPrice: (order as unknown as { stopPrice?: number }).stopPrice,
+      status,
+      filledQuantity: Number(order.filled ?? 0),
+      averagePrice: typeof order.average === 'number' ? order.average : undefined,
+      createdAt,
+      updatedAt
     };
   }
 
