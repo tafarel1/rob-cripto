@@ -1,37 +1,12 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import ThemeToggle from '@/components/ui/ThemeToggle';
+import HeaderBar from '@/components/layout/HeaderBar';
 import { Bot, Shield, Zap } from 'lucide-react';
 
 export default function Home() {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* Header */}
-      <header className="container mx-auto px-6 py-8">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center space-x-3">
-            <Bot className="h-8 w-8 text-blue-400" />
-            <h1 className="text-2xl font-bold">Robô Cripto</h1>
-          </div>
-          <div className="flex items-center space-x-6">
-            <nav className="flex space-x-6">
-              <Link to="/dual-dashboard" className="hover:text-blue-500 transition-colors">
-                Conta Dual
-              </Link>
-              <Link to="/automated-trading" className="hover:text-blue-500 transition-colors">
-                Trading Automático
-              </Link>
-              <Link to="/" className="hover:text-blue-500 transition-colors">
-                Sobre
-              </Link>
-              <Link to="/" className="hover:text-blue-500 transition-colors">
-                Contato
-              </Link>
-            </nav>
-            <ThemeToggle />
-          </div>
-        </div>
-      </header>
+      <HeaderBar />
 
       {/* Hero Section */}
       <section className="container mx-auto px-6 py-20">

@@ -13,7 +13,7 @@ import {
   Home
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import ThemeToggle from '@/components/ui/ThemeToggle';
+import HeaderBar from '@/components/layout/HeaderBar';
 
 export default function DualAccountDashboard() {
   const { currentMode } = useAccountManager();
@@ -31,42 +31,13 @@ export default function DualAccountDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="bg-card shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <h1 className="text-2xl font-bold text-foreground flex items-center">
-                  <Zap className="w-8 h-8 mr-3 text-blue-600" />
-                  Robo Cripto SMC
-                </h1>
-              </div>
-              <div className="ml-6">
-                <Badge className={`${getModeColor(currentMode)} border-2 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800`}>
-                  {getModeIcon(currentMode)} {currentMode} Mode
-                </Badge>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              <Link to="/">
-                <Button className="bg-purple-600 hover:bg-purple-700 text-white dark:bg-purple-700 dark:hover:bg-purple-600">
-                  <Home className="w-4 h-4 mr-2" />
-                  Página Inicial
-                </Button>
-              </Link>
-              <Link to="/automated-trading">
-                <Button className="bg-purple-600 hover:bg-purple-700 text-white dark:bg-purple-700 dark:hover:bg-purple-600">
-                  <Bot className="w-4 h-4 mr-2" />
-                  Trading Automático
-                </Button>
-              </Link>
-              <ThemeToggle />
-            </div>
-          </div>
+      <HeaderBar rightItems={
+        <div className="ml-6">
+          <Badge className={`${getModeColor(currentMode)} border-2 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800`}>
+            {getModeIcon(currentMode)} {currentMode} Mode
+          </Badge>
         </div>
-      </div>
+      } />
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
