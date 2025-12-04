@@ -1,10 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+// ESM server without __filename/__dirname helpers
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -126,7 +122,7 @@ app.get('/api/exchange/positions', (req, res) => {
 });
 
 // Error handling middleware
-app.use((err, req, res, next) => {
+app.use((err, req, res, _next) => {
   console.error('Error:', err);
   res.status(500).json({ 
     success: false, 

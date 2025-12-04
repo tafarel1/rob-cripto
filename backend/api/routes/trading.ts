@@ -1,9 +1,9 @@
-import { Router } from 'express';
+import { Router, type Request, type Response } from 'express';
 import { TradingEngine } from '../services/tradingEngine';
 import { ExchangeService } from '../services/exchangeService';
 import { SMCAnalyzer } from '../services/smcAnalyzer';
 import { RiskManager } from '../services/riskManager';
-import { ApiResponse, StrategyConfig, ExchangeConfig, RiskManagement, RiskStats, TradePosition, SMCAnalysis, TradingSignal, MarketData } from '../../shared/types';
+import { ApiResponse, StrategyConfig, ExchangeConfig, RiskManagement, RiskStats, TradePosition, SMCAnalysis, TradingSignal, MarketData } from '../../../shared/types';
 
 const router = Router();
 
@@ -45,7 +45,7 @@ function initializeServices() {
  * GET /api/trading/status
  * Obtém status do sistema de trading
  */
-router.get('/status', async (req, res) => {
+router.get('/status', async (req: Request, res: Response) => {
   try {
     if (!tradingEngine) {
       initializeServices();
@@ -86,7 +86,7 @@ router.get('/status', async (req, res) => {
  * POST /api/trading/start
  * Inicia o motor de trading
  */
-router.post('/start', async (req, res) => {
+router.post('/start', async (req: Request, res: Response) => {
   try {
     if (!tradingEngine) {
       initializeServices();
@@ -116,7 +116,7 @@ router.post('/start', async (req, res) => {
  * POST /api/trading/stop
  * Para o motor de trading
  */
-router.post('/stop', async (req, res) => {
+router.post('/stop', async (req: Request, res: Response) => {
   try {
     if (!tradingEngine) {
       const response: ApiResponse<undefined> = {
@@ -150,7 +150,7 @@ router.post('/stop', async (req, res) => {
  * GET /api/trading/positions
  * Obtém posições ativas
  */
-router.get('/positions', async (req, res) => {
+router.get('/positions', async (req: Request, res: Response) => {
   try {
     if (!tradingEngine) {
       const response: ApiResponse<undefined> = {
@@ -183,9 +183,9 @@ router.get('/positions', async (req, res) => {
  * POST /api/trading/positions/:id/close
  * Fecha posição específica
  */
-router.post('/positions/:id/close', async (req, res) => {
+router.post('/positions/:id/close', async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     
     // Implementar fechamento de posição
     // tradingEngine!.closePosition(id);
@@ -211,7 +211,7 @@ router.post('/positions/:id/close', async (req, res) => {
  * GET /api/trading/strategies
  * Obtém estratégias configuradas
  */
-router.get('/strategies', async (req, res) => {
+router.get('/strategies', async (req: Request, res: Response) => {
   try {
     if (!tradingEngine) {
       const response: ApiResponse<undefined> = {
@@ -244,9 +244,9 @@ router.get('/strategies', async (req, res) => {
  * POST /api/trading/strategies
  * Adiciona nova estratégia
  */
-router.post('/strategies', async (req, res) => {
+router.post('/strategies', async (req: Request, res: Response) => {
   try {
-    const strategyConfig: StrategyConfig = req.body;
+    const strategyConfig = req.body as StrategyConfig;
     
     if (!tradingEngine) {
       initializeServices();
@@ -275,9 +275,9 @@ router.post('/strategies', async (req, res) => {
  * DELETE /api/trading/strategies/:name
  * Remove estratégia
  */
-router.delete('/strategies/:name', async (req, res) => {
+router.delete('/strategies/:name', async (req: Request, res: Response) => {
   try {
-    const { name } = req.params;
+    const { name } = req.params as { name: string };
     
     if (!tradingEngine) {
       const response: ApiResponse<undefined> = {
@@ -311,10 +311,12 @@ router.delete('/strategies/:name', async (req, res) => {
  * GET /api/trading/market-data/:symbol
  * Obtém dados de mercado para análise
  */
-router.get('/market-data/:symbol', async (req, res) => {
+router.get('/market-data/:symbol', async (req: Request, res: Response) => {
   try {
-    const { symbol } = req.params;
-    const { timeframe = '1h', limit = '100' } = req.query;
+    const { symbol } = req.params as { symbol: string };
+    const query = req.query as { timeframe?: string; limit?: string };
+    const timeframe = query.timeframe ?? '1h';
+    const limitStr = query.limit ?? '100';
     
     if (!exchangeService) {
       initializeServices();
@@ -323,8 +325,8 @@ router.get('/market-data/:symbol', async (req, res) => {
     const marketData = await exchangeService!.getMarketData(
       'binance',
       symbol,
-      timeframe as string,
-      parseInt(limit as string)
+      timeframe,
+      parseInt(limitStr)
     );
     const response: ApiResponse<MarketData[]> = {
       success: true,
@@ -347,9 +349,10 @@ router.get('/market-data/:symbol', async (req, res) => {
  * POST /api/trading/analyze
  * Realiza análise SMC de mercado
  */
-router.post('/analyze', async (req, res) => {
+router.post('/analyze', async (req: Request, res: Response) => {
   try {
-    const { symbol, timeframe = '1h', limit = 100 } = req.body;
+    const body = req.body as { symbol: string; timeframe?: string; limit?: number };
+    const { symbol, timeframe = '1h', limit = 100 } = body;
     
     if (!smcAnalyzer || !exchangeService) {
       initializeServices();
@@ -398,7 +401,7 @@ router.post('/analyze', async (req, res) => {
  * GET /api/trading/exchanges
  * Obtém lista de exchanges disponíveis
  */
-router.get('/exchanges', async (req, res) => {
+router.get('/exchanges', async (req: Request, res: Response) => {
   try {
     const exchanges = ['binance', 'bybit', 'okx', 'kucoin'];
     const response: ApiResponse<string[]> = {
@@ -422,9 +425,9 @@ router.get('/exchanges', async (req, res) => {
  * GET /api/trading/symbols/:exchange
  * Obtém símbolos disponíveis na exchange
  */
-router.get('/symbols/:exchange', async (req, res) => {
+router.get('/symbols/:exchange', async (req: Request, res: Response) => {
   try {
-    const { exchange } = req.params;
+    const { exchange } = req.params as { exchange: string };
     
     if (!exchangeService) {
       initializeServices();
@@ -452,7 +455,7 @@ router.get('/symbols/:exchange', async (req, res) => {
  * GET /api/trading/risk-stats
  * Obtém estatísticas de risco
  */
-router.get('/risk-stats', async (req, res) => {
+router.get('/risk-stats', async (req: Request, res: Response) => {
   try {
     if (!riskManager) {
       initializeServices();

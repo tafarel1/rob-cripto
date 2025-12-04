@@ -209,33 +209,33 @@ export default function RealDashboard() {
 
   const getRiskColor = (level: string) => {
     switch (level) {
-      case 'low': return 'text-green-600 bg-green-100';
-      case 'medium': return 'text-yellow-600 bg-yellow-100';
-      case 'high': return 'text-red-600 bg-red-100';
-      default: return 'text-gray-600 bg-gray-100';
+      case 'low': return 'text-green-700 bg-green-100';
+      case 'medium': return 'text-yellow-700 bg-yellow-100';
+      case 'high': return 'text-red-700 bg-red-100';
+      default: return 'text-muted-foreground bg-secondary';
     }
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto p-6 space-y-6">
+    <div className="w-full max-w-7xl mx-auto p-6 space-y-6 bg-background text-foreground">
       {/* Header with Connection Status */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 flex items-center">
+          <h2 className="text-2xl font-bold text-foreground flex items-center">
             <Zap className="w-6 h-6 mr-3 text-blue-600" />
             Dashboard Real
           </h2>
-          <p className="text-gray-600 mt-1">Operações com capital real - Máxima segurança</p>
+          <p className="text-muted-foreground mt-1">Operações com capital real - Máxima segurança</p>
         </div>
         
         <div className="flex items-center space-x-3">
           {/* Connection Status */}
           <div className={`flex items-center px-3 py-2 rounded-full ${
             connectionStatus === 'connected' 
-              ? 'bg-green-100 text-green-800' 
+              ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' 
               : connectionStatus === 'error' 
-              ? 'bg-red-100 text-red-800'
-              : 'bg-yellow-100 text-yellow-800'
+              ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+              : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
           }`}>
             {connectionStatus === 'connected' ? (
               <CheckCircle className="w-4 h-4 mr-2" />
@@ -285,7 +285,7 @@ export default function RealDashboard() {
               ${realAccount.balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
             </div>
             <div className={`text-xs mt-1 flex items-center ${
-              performance.totalProfit >= 0 ? 'text-green-600' : 'text-red-600'
+              performance.totalProfit >= 0 ? 'text-green-700' : 'text-red-700'
             }`}>
               {performance.totalProfit >= 0 ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
               {performance.totalProfit >= 0 ? '+' : ''}${performance.totalProfit.toFixed(2)}
@@ -300,11 +300,11 @@ export default function RealDashboard() {
           </CardHeader>
           <CardContent>
             <div className={`text-2xl font-bold ${
-              performance.unrealizedPnl >= 0 ? 'text-green-600' : 'text-red-600'
+              performance.unrealizedPnl >= 0 ? 'text-green-700' : 'text-red-700'
             }`}>
               ${performance.unrealizedPnl.toFixed(2)}
             </div>
-            <div className="text-xs text-gray-500 mt-1">
+            <div className="text-xs text-muted-foreground mt-1">
               {performance.totalTrades} posições abertas
             </div>
           </CardContent>
@@ -316,10 +316,10 @@ export default function RealDashboard() {
             <div className={`w-4 h-4 rounded-full ${getRiskColor(performance.riskLevel).split(' ')[1]}`} />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-gray-800">
+            <div className="text-2xl font-bold text-foreground">
               {performance.winRate.toFixed(1)}%
             </div>
-            <div className="text-xs text-gray-500 mt-1">
+            <div className="text-xs text-muted-foreground mt-1">
               {performance.winningTrades}V • {performance.losingTrades}D
             </div>
           </CardContent>
@@ -334,7 +334,7 @@ export default function RealDashboard() {
             <div className={`text-lg font-bold ${getRiskColor(performance.riskLevel)} px-2 py-1 rounded`}>
               {performance.riskLevel.toUpperCase()}
             </div>
-            <div className="text-xs text-gray-500 mt-1">
+            <div className="text-xs text-muted-foreground mt-1">
               Score: {riskMetrics.riskScore.toFixed(0)}/100
             </div>
           </CardContent>
@@ -356,7 +356,7 @@ export default function RealDashboard() {
               <div>
                 <div className="flex justify-between text-sm mb-2">
                   <span>Perda Diária</span>
-                  <span className={riskMetrics.dailyLoss > riskMetrics.dailyLossLimit * 0.8 ? 'text-red-600' : 'text-gray-600'}>
+                  <span className={riskMetrics.dailyLoss > riskMetrics.dailyLossLimit * 0.8 ? 'text-red-700' : 'text-muted-foreground'}>
                     ${riskMetrics.dailyLoss.toFixed(2)} / ${riskMetrics.dailyLossLimit.toFixed(2)}
                   </span>
                 </div>
@@ -369,7 +369,7 @@ export default function RealDashboard() {
               <div>
                 <div className="flex justify-between text-sm mb-2">
                   <span>Posições Abertas</span>
-                  <span className={riskMetrics.openPositions > riskMetrics.maxPositions * 0.8 ? 'text-red-600' : 'text-gray-600'}>
+                  <span className={riskMetrics.openPositions > riskMetrics.maxPositions * 0.8 ? 'text-red-700' : 'text-muted-foreground'}>
                     {riskMetrics.openPositions} / {riskMetrics.maxPositions}
                   </span>
                 </div>
@@ -382,7 +382,7 @@ export default function RealDashboard() {
               <div>
                 <div className="flex justify-between text-sm mb-2">
                   <span>Exposição Total</span>
-                  <span className={riskMetrics.exposure > riskMetrics.maxExposure * 0.8 ? 'text-red-600' : 'text-gray-600'}>
+                  <span className={riskMetrics.exposure > riskMetrics.maxExposure * 0.8 ? 'text-red-700' : 'text-muted-foreground'}>
                     ${riskMetrics.exposure.toFixed(2)} / ${riskMetrics.maxExposure.toFixed(2)}
                   </span>
                 </div>
@@ -407,26 +407,26 @@ export default function RealDashboard() {
             <div className="space-y-3 max-h-64 overflow-y-auto">
               {(!positions || positions.length === 0) ? (
                 <div className="text-center py-8">
-                  <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <Clock className="w-6 h-6 text-gray-400" />
+                  <div className="w-12 h-12 bg-secondary rounded-full flex items-center justify-center mx-auto mb-3">
+                    <Clock className="w-6 h-6 text-muted-foreground" />
                   </div>
-                  <p className="text-gray-600">Nenhuma posição aberta</p>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-muted-foreground">Nenhuma posição aberta</p>
+                  <p className="text-sm text-muted-foreground mt-1">
                     Aguardando oportunidades de mercado
                   </p>
                 </div>
               ) : (
                 positions.map((position) => (
-                  <div key={position.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div key={position.id} className="flex items-center justify-between p-3 bg-secondary rounded-lg">
                     <div className="flex items-center space-x-3">
                       <div className={`w-2 h-2 rounded-full ${
                         position.unrealizedPnl >= 0 ? 'bg-green-500' : 'bg-red-500'
                       }`} />
                       <div>
                         <div className="font-medium text-sm">{position.symbol}</div>
-                        <div className="text-xs text-gray-500">
-                          {position.side.toUpperCase()} • {position.amount}
-                        </div>
+                      <div className="text-xs text-muted-foreground">
+                        {position.side.toUpperCase()} • {position.amount}
+                      </div>
                       </div>
                     </div>
                     <div className="text-right">
@@ -434,7 +434,7 @@ export default function RealDashboard() {
                         ${position.currentPrice.toFixed(2)}
                       </div>
                       <div className={`text-xs ${
-                        position.unrealizedPnl >= 0 ? 'text-green-600' : 'text-red-600'
+                        position.unrealizedPnl >= 0 ? 'text-green-700' : 'text-red-700'
                       }`}>
                         {position.unrealizedPnl >= 0 ? '+' : ''}${position.unrealizedPnl.toFixed(2)}
                       </div>
@@ -451,7 +451,7 @@ export default function RealDashboard() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center">
-            <AlertTriangle className="w-5 h-5 mr-2 text-red-600" />
+            <AlertTriangle className="w-5 h-5 mr-2 text-red-700" />
             Controles de Segurança
           </CardTitle>
         </CardHeader>

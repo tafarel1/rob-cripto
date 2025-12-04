@@ -72,18 +72,18 @@ export default function AccountModeSelector({ onModeChange }: AccountModeSelecto
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto p-6">
+    <div className="w-full max-w-6xl mx-auto p-6 bg-background text-foreground">
       {/* Header */}
       <div className="mb-8 text-center">
-        <h2 className="text-3xl font-bold text-gray-900 mb-2">
+        <h2 className="text-3xl font-bold text-foreground mb-2">
           🎯 Seletor de Modo de Conta
         </h2>
-        <p className="text-gray-600">
+        <p className="text-muted-foreground">
           Escolha entre conta virtual para aprendizado ou conta real para operações com capital genuíno
         </p>
         
         {/* Current Mode Indicator */}
-        <div className="mt-4 inline-flex items-center px-4 py-2 rounded-full bg-blue-100 text-blue-800">
+        <div className="mt-4 inline-flex items-center px-4 py-2 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
           {currentMode === 'VIRTUAL' ? (
             <>
               <Gamepad2 className="w-4 h-4 mr-2" />
@@ -109,7 +109,7 @@ export default function AccountModeSelector({ onModeChange }: AccountModeSelecto
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center text-green-700">
-                <Gamepad2 className="w-6 h-6 mr-3 text-green-600" />
+                <Gamepad2 className="w-6 h-6 mr-3 text-green-700" />
                 <span className="text-xl font-bold">🎮 Conta Virtual</span>
               </CardTitle>
               <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">
@@ -122,18 +122,18 @@ export default function AccountModeSelector({ onModeChange }: AccountModeSelecto
               <div className="bg-green-50 p-4 rounded-lg">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-green-700">Saldo Inicial</span>
-                  <DollarSign className="w-4 h-4 text-green-600" />
+                  <DollarSign className="w-4 h-4 text-green-700" />
                 </div>
                 <div className="text-2xl font-bold text-green-800">$10,000</div>
-                <div className="text-xs text-green-600 mt-1">Capital virtual para testes</div>
+                <div className="text-xs text-green-700 mt-1">Capital virtual para testes</div>
               </div>
 
               <div className="space-y-3">
-                <h4 className="font-semibold text-gray-800 flex items-center">
-                  <TrendingUp className="w-4 h-4 mr-2 text-green-600" />
+                <h4 className="font-semibold text-foreground flex items-center">
+                  <TrendingUp className="w-4 h-4 mr-2 text-green-700" />
                   Benefícios:
                 </h4>
-                <ul className="space-y-2 text-sm text-gray-600">
+                <ul className="space-y-2 text-sm text-muted-foreground">
                   <li className="flex items-start">
                     <span className="text-green-500 mr-2">•</span>
                     <span>💰 Capital virtual: $10,000 para testes ilimitados</span>
@@ -195,7 +195,7 @@ export default function AccountModeSelector({ onModeChange }: AccountModeSelecto
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="bg-blue-50 p-4 rounded-lg">
+              <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-blue-700">Capital Real</span>
                   <DollarSign className="w-4 h-4 text-blue-600" />
@@ -205,11 +205,11 @@ export default function AccountModeSelector({ onModeChange }: AccountModeSelecto
               </div>
 
               <div className="space-y-3">
-                <h4 className="font-semibold text-gray-800 flex items-center">
-                  <Shield className="w-4 h-4 mr-2 text-blue-600" />
+                <h4 className="font-semibold text-foreground flex items-center">
+                  <Shield className="w-4 h-4 mr-2 text-blue-700" />
                   Características:
                 </h4>
-                <ul className="space-y-2 text-sm text-gray-600">
+                <ul className="space-y-2 text-sm text-muted-foreground">
                   <li className="flex items-start">
                     <span className="text-blue-500 mr-2">•</span>
                     <span>💵 Capital real do usuário</span>
@@ -243,7 +243,7 @@ export default function AccountModeSelector({ onModeChange }: AccountModeSelecto
                   
                   <div className="space-y-3">
                     <div>
-                      <Label htmlFor="apiKey" className="text-sm font-medium text-gray-700">
+                      <Label htmlFor="apiKey" className="text-sm font-medium text-foreground">
                         Binance API Key
                       </Label>
                       <Input
@@ -257,7 +257,7 @@ export default function AccountModeSelector({ onModeChange }: AccountModeSelecto
                     </div>
                     
                     <div>
-                      <Label htmlFor="apiSecret" className="text-sm font-medium text-gray-700">
+                      <Label htmlFor="apiSecret" className="text-sm font-medium text-foreground">
                         Binance API Secret
                       </Label>
                       <Input
@@ -302,15 +302,15 @@ export default function AccountModeSelector({ onModeChange }: AccountModeSelecto
       </div>
 
       {/* Mode Comparison */}
-      <div className="mt-8 p-6 bg-gray-50 rounded-lg">
+      <div className="mt-8 p-6 bg-secondary rounded-lg">
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-          <TrendingUp className="w-5 h-5 mr-2 text-gray-600" />
+          <TrendingUp className="w-5 h-5 mr-2 text-muted-foreground" />
           Comparação de Modos
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
             <h4 className="font-medium text-green-700">🎮 Conta Virtual</h4>
-            <ul className="text-sm text-gray-600 space-y-1">
+            <ul className="text-sm text-muted-foreground space-y-1">
               <li>• Risco: 2% por trade</li>
               <li>• Limite diário: 5%</li>
               <li>• Máx. trades: 5 simultâneos</li>
@@ -320,7 +320,7 @@ export default function AccountModeSelector({ onModeChange }: AccountModeSelecto
           </div>
           <div className="space-y-2">
             <h4 className="font-medium text-blue-700">⚡ Conta Real</h4>
-            <ul className="text-sm text-gray-600 space-y-1">
+            <ul className="text-sm text-muted-foreground space-y-1">
               <li>• Risco: 1% por trade</li>
               <li>• Limite diário: 3%</li>
               <li>• Máx. trades: 3 simultâneos</li>

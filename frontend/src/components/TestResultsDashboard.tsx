@@ -121,13 +121,13 @@ export default function TestResultsDashboard() {
       case 'analysis':
         return 'text-purple-600';
       case 'order':
-        return 'text-green-600';
+        return 'text-green-700';
       case 'risk':
         return 'text-orange-600';
       case 'notification':
         return 'text-cyan-600';
       default:
-        return 'text-gray-600';
+        return 'text-muted-foreground';
     }
   };
 
@@ -165,7 +165,7 @@ export default function TestResultsDashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Dashboard de Testes</h2>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-muted-foreground">
             Última execução: {lastTestRun ? lastTestRun.toLocaleString('pt-BR') : 'Nunca'}
           </p>
         </div>
@@ -196,7 +196,7 @@ export default function TestResultsDashboard() {
             <CheckCircle className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
+            <div className="text-2xl font-bold text-green-700">
               {testSummary.successRate.toFixed(1)}%
             </div>
             <Progress value={testSummary.successRate} className="h-2 mt-2" />
@@ -210,7 +210,7 @@ export default function TestResultsDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{testSummary.totalTests}</div>
-            <div className="text-xs text-gray-500 mt-1">
+            <div className="text-xs text-muted-foreground mt-1">
               {testSummary.passedTests} passou • {testSummary.failedTests} falhou
             </div>
           </CardContent>
@@ -225,7 +225,7 @@ export default function TestResultsDashboard() {
             <div className="text-2xl font-bold">
               {formatDuration(testSummary.averageDuration)}
             </div>
-            <div className="text-xs text-gray-500 mt-1">
+            <div className="text-xs text-muted-foreground mt-1">
               Tempo médio por teste
             </div>
           </CardContent>
@@ -240,7 +240,7 @@ export default function TestResultsDashboard() {
             <div className="text-2xl font-bold text-yellow-600">
               {testSummary.warningTests}
             </div>
-            <div className="text-xs text-gray-500 mt-1">
+            <div className="text-xs text-muted-foreground mt-1">
               Testes com avisos
             </div>
           </CardContent>
@@ -273,7 +273,7 @@ export default function TestResultsDashboard() {
                   </div>
                   <div className="text-2xl font-bold">{successCount}/{categoryTests.length}</div>
                   <Progress value={successRate} className="h-2 mt-1" />
-                  <div className="text-xs text-gray-500 mt-1">
+                  <div className="text-xs text-muted-foreground mt-1">
                     {successRate.toFixed(0)}% sucesso
                   </div>
                   <Button 
@@ -299,9 +299,9 @@ export default function TestResultsDashboard() {
         <CardContent>
           <div className="space-y-3 max-h-96 overflow-y-auto">
             {testResults.length === 0 ? (
-              <p className="text-center text-gray-500 py-8">
-                Nenhum teste executado ainda. Clique em "Executar Todos os Testes" para começar.
-              </p>
+                <p className="text-center text-muted-foreground py-8">
+                  Nenhum teste executado ainda. Clique em "Executar Todos os Testes" para começar.
+                </p>
             ) : (
               testResults.map((result) => (
                 <div key={result.id} className="flex items-center justify-between p-3 border rounded-lg">
@@ -320,17 +320,17 @@ export default function TestResultsDashboard() {
                         </span>
                         {getStatusBadge(result.status)}
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-muted-foreground">
                         {new Date(result.timestamp).toLocaleString('pt-BR')} • {formatDuration(result.duration)}
                       </div>
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-sm text-gray-600">
+                    <div className="text-sm text-muted-foreground">
                       {result.message}
                     </div>
                     {result.details && (
-                      <div className="text-xs text-gray-500 mt-1">
+                      <div className="text-xs text-muted-foreground mt-1">
                         {JSON.stringify(result.details).substring(0, 50)}...
                       </div>
                     )}

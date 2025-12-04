@@ -1,6 +1,5 @@
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
 
 // Importar rotas
 const tradingRoutes = require('./api/routes/trading');

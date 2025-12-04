@@ -2,6 +2,7 @@
   "name": "robo-cripto",
   "version": "1.0.0",
   "description": "Cryptocurrency trading bot with Smart Money Concepts",
+  "type": "module",
   "main": "backend/server.js",
   "scripts": {
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
@@ -14,7 +15,9 @@
     "lint:fix": "eslint . --ext .js,.ts,.tsx --fix --max-warnings=0",
     "typecheck": "npm run typecheck:frontend && npm run typecheck:backend",
     "typecheck:frontend": "npm --prefix frontend run typecheck",
-    "typecheck:backend": "tsc --noEmit -p backend/tsconfig.json"
+    "typecheck:backend": "tsc --noEmit -p backend/tsconfig.json",
+    "test": "npm --prefix frontend run test && npm --prefix backend run test",
+    "coverage": "npm --prefix frontend run coverage && npm --prefix backend run coverage"
   },
   "dependencies": {
     "babel-plugin-react-dev-locator": "^1.0.6",

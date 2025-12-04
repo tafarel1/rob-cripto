@@ -349,9 +349,9 @@ export default function DualAccountSystemTest() {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'pass':
-        return <CheckCircle className="w-4 h-4 text-green-600" />;
+        return <CheckCircle className="w-4 h-4 text-green-700" />;
       case 'fail':
-        return <XCircle className="w-4 h-4 text-red-600" />;
+        return <XCircle className="w-4 h-4 text-red-700" />;
       default:
         return <AlertTriangle className="w-4 h-4 text-yellow-600" />;
     }
@@ -368,11 +368,11 @@ export default function DualAccountSystemTest() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 flex items-center">
+          <h2 className="text-2xl font-bold text-foreground flex items-center">
             <TrendingUp className="w-6 h-6 mr-3 text-blue-600" />
             Dual Account System Test
           </h2>
-          <p className="text-gray-600 mt-1">
+          <p className="text-muted-foreground mt-1">
             Comprehensive testing of virtual and real account functionality
           </p>
         </div>
@@ -424,28 +424,28 @@ export default function DualAccountSystemTest() {
           <div className="space-y-4">
             {testResults.length === 0 ? (
               <div className="text-center py-8">
-                <p className="text-gray-500">No tests run yet. Click "Run All Tests" to start.</p>
+                <p className="text-muted-foreground">No tests run yet. Click "Run All Tests" to start.</p>
               </div>
             ) : (
               testResults.map((result, index) => (
-                <div key={index} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
+                <div key={index} className="flex items-start space-x-3 p-3 bg-secondary rounded-lg">
                   <div className="mt-1">
                     {getStatusIcon(result.status)}
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
-                      <h4 className="font-medium text-gray-900">{result.test}</h4>
+                      <h4 className="font-medium text-foreground">{result.test}</h4>
                       <Badge variant={result.status === 'pass' ? 'default' : 'destructive'} className={result.status === 'pass' ? 'bg-green-100 text-green-800' : ''}>
                         {result.status.toUpperCase()}
                       </Badge>
                     </div>
-                    <p className="text-sm text-gray-600 mt-1">{result.message}</p>
+                    <p className="text-sm text-muted-foreground mt-1">{result.message}</p>
                     {result.details && (
                       <details className="mt-2">
-                        <summary className="text-xs text-gray-500 cursor-pointer hover:text-gray-700">
+                        <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
                           View Details
                         </summary>
-                        <pre className="mt-2 text-xs bg-gray-100 p-2 rounded overflow-auto">
+                        <pre className="mt-2 text-xs bg-secondary p-2 rounded overflow-auto">
                           {JSON.stringify(result.details, null, 2)}
                         </pre>
                       </details>
@@ -462,20 +462,20 @@ export default function DualAccountSystemTest() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle className="text-green-600">Virtual Account</CardTitle>
+            <CardTitle className="text-green-700">Virtual Account</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
               <div className="flex justify-between">
-                <span className="text-gray-600">Balance:</span>
+                <span className="text-muted-foreground">Balance:</span>
                 <span className="font-medium">${virtualAccount.balance.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Mode:</span>
+                <span className="text-muted-foreground">Mode:</span>
                 <Badge variant="default" className="bg-green-100 text-green-800">{virtualAccount.mode}</Badge>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Risk per Trade:</span>
+                <span className="text-muted-foreground">Risk per Trade:</span>
                 <span className="font-medium">{virtualAccount.riskSettings.maxRiskPerTrade}%</span>
               </div>
             </div>
@@ -489,17 +489,17 @@ export default function DualAccountSystemTest() {
           <CardContent>
             <div className="space-y-2">
               <div className="flex justify-between">
-                <span className="text-gray-600">Balance:</span>
+                <span className="text-muted-foreground">Balance:</span>
                 <span className="font-medium">${realAccount.balance.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Mode:</span>
+                <span className="text-muted-foreground">Mode:</span>
                 <Badge variant={currentMode === 'REAL' ? 'default' : 'secondary'}>
                   {realAccount.mode}
                 </Badge>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Risk per Trade:</span>
+                <span className="text-muted-foreground">Risk per Trade:</span>
                 <span className="font-medium">{realAccount.riskSettings.maxRiskPerTrade}%</span>
               </div>
             </div>
