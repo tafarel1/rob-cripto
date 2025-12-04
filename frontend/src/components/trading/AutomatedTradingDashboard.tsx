@@ -31,7 +31,7 @@ import { toast } from 'sonner';
 import { useAccountManager } from '@/components/account/useAccountManager';
 import AutomatedTradingConfig from './AutomatedTradingConfig';
 import { useExchange } from '@/hooks/useExchange';
-import ThemeToggle from '@/components/ui/ThemeToggle';
+import HeaderBar from '@/components/layout/HeaderBar';
  
 
 interface EngineStatus {
@@ -400,46 +400,23 @@ export default function AutomatedTradingDashboard() {
   return (
     <div className="min-h-screen bg-background text-foreground p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold flex items-center">
-              <Bot className="w-8 h-8 mr-3 text-blue-600" />
-              Trading Automático
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Robô de trading inteligente com Smart Money Concepts
-            </p>
+        <HeaderBar rightItems={
+          <div className="flex items-center space-x-4">
+            <Badge variant="outline" className={currentMode === 'VIRTUAL' ? 'border-green-200 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'border-blue-200 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'}>
+              {currentMode === 'VIRTUAL' ? '🎮 MODO DEMO' : '⚡ MODO REAL'}
+            </Badge>
+            {engineStatus && (
+              <div className="flex items-center space-x-2">
+                <div className={`w-3 h-3 rounded-full ${getStatusColor(engineStatus.status)} animate-pulse`}></div>
+                <span className="text-sm font-medium">{getStatusText(engineStatus.status)}</span>
+              </div>
+            )}
+            <Button onClick={exportCsv} className="bg-purple-600 hover:bg-purple-700 text-white">
+              <FileDown className="w-4 h-4 mr-2" />
+              Exportar CSV
+            </Button>
           </div>
-        <div className="flex items-center space-x-4">
-          <Badge variant="outline" className={currentMode === 'VIRTUAL' ? 'border-green-200 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'border-blue-200 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'}>
-            {currentMode === 'VIRTUAL' ? '🎮 MODO DEMO' : '⚡ MODO REAL'}
-          </Badge>
-          {engineStatus && (
-            <div className="flex items-center space-x-2">
-              <div className={`w-3 h-3 rounded-full ${getStatusColor(engineStatus.status)} animate-pulse`}></div>
-              <span className="text-sm font-medium">{getStatusText(engineStatus.status)}</span>
-            </div>
-          )}
-          <Link to="/">
-            <Button className="bg-purple-600 hover:bg-purple-700 text-white">
-              <Home className="w-4 h-4 mr-2" />
-              Página Inicial
-            </Button>
-          </Link>
-          <Link to="/dual-dashboard">
-            <Button className="bg-purple-600 hover:bg-purple-700 text-white">
-              <Zap className="w-4 h-4 mr-2" />
-              Dual Dashboard
-            </Button>
-          </Link>
-          <Button onClick={exportCsv} className="bg-purple-600 hover:bg-purple-700 text-white">
-            <FileDown className="w-4 h-4 mr-2" />
-            Exportar CSV
-          </Button>
-          <ThemeToggle />
-        </div>
-        </div>
+        } />
 
         {/* Status Alert */}
         {!engineStatus && (
