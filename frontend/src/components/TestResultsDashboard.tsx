@@ -4,16 +4,16 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { 
-  BarChart3,
-  DollarSign,
-  Clock,
-  CheckCircle,
-  AlertCircle,
-  Zap,
-  Target,
-  Shield,
-  Activity
-} from 'lucide-react';
+  BarChart3Icon,
+  DollarIcon,
+  ClockIcon,
+  CheckCircleIcon,
+  InfoIcon,
+  ZapIcon,
+  TargetIcon,
+  ShieldIcon,
+  ActivityIcon
+} from '@/components/ui/icons';
 
 interface TestResult {
   id: string;
@@ -100,17 +100,17 @@ export default function TestResultsDashboard() {
   const getTestTypeIcon = (testType: string) => {
     switch (testType) {
       case 'connection':
-        return <Zap className="h-4 w-4" />;
+        return <ZapIcon className="h-4 w-4" />;
       case 'analysis':
-        return <BarChart3 className="h-4 w-4" />;
+        return <BarChart3Icon className="h-4 w-4" />;
       case 'order':
-        return <DollarSign className="h-4 w-4" />;
+        return <DollarIcon className="h-4 w-4" />;
       case 'risk':
-        return <Shield className="h-4 w-4" />;
+        return <ShieldIcon className="h-4 w-4" />;
       case 'notification':
-        return <Activity className="h-4 w-4" />;
+        return <ActivityIcon className="h-4 w-4" />;
       default:
-        return <Target className="h-4 w-4" />;
+        return <TargetIcon className="h-4 w-4" />;
     }
   };
 
@@ -181,7 +181,7 @@ export default function TestResultsDashboard() {
             </>
           ) : (
             <>
-              <Zap className="h-4 w-4 mr-2" />
+              <ZapIcon className="h-4 w-4 mr-2" />
               Executar Todos os Testes
             </>
           )}
@@ -193,7 +193,7 @@ export default function TestResultsDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Taxa de Sucesso</CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-500" />
+            <CheckCircleIcon className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-700">
@@ -206,7 +206,7 @@ export default function TestResultsDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total de Testes</CardTitle>
-            <Target className="h-4 w-4 text-blue-500" />
+            <TargetIcon className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{testSummary.totalTests}</div>
@@ -219,7 +219,7 @@ export default function TestResultsDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Duração Média</CardTitle>
-            <Clock className="h-4 w-4 text-purple-500" />
+            <ClockIcon className="h-4 w-4 text-purple-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
@@ -234,7 +234,7 @@ export default function TestResultsDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Alertas</CardTitle>
-            <AlertCircle className="h-4 w-4 text-yellow-500" />
+            <InfoIcon className="h-4 w-4 text-yellow-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-yellow-600">

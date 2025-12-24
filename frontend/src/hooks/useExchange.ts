@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { API_CONFIG } from '@/lib/config';
-import { normalizeExchangeStatus, normalizeBalance } from './exchange-utils'
+import { normalizeExchangeStatus, normalizeBalance } from '@/hooks/exchange-utils'
+import { useSocket } from '@/hooks/useSocket'
 
 interface ExchangeStatus {
   isConnected: boolean;
@@ -141,6 +142,29 @@ export function useExchange() {
       setIsLoading(false);
     }
   };
+
+  useSocket(
+    (evt: Partial<{ isConnected: boolean; exchange: string; status: string }>) => {
+      const normalized = normalizeExchangeStatus(evt, Date.now())
+      setExchangeStatus(normalized)
+      if (normalized.isConnected) {
+        fetchBalance();
+        fetchPositions();
+      }
+    },
+    () => {
+      fetchBalance();
+      fetchPositions();
+    },
+    (balEvt) => {
+      setBalance(normalizeBalance(balEvt))
+    },
+    (posEvt) => {
+      const payload = posEvt as { data?: unknown }
+      const data = (payload as { data?: Position[] }).data
+      setPositions(Array.isArray(data) ? data! : [])
+    }
+  )
 
   return {
     exchangeStatus,

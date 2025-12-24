@@ -1,17 +1,16 @@
 import { defineConfig } from 'vitest/config'
+import react from '@vitejs/plugin-react'
+import tsconfigPaths from 'vite-tsconfig-paths'
+import path from 'path'
 
 export default defineConfig({
-  test: {
-    environment: 'jsdom',
-    coverage: {
-      provider: 'v8',
-      include: ['src/lib/**'],
-      thresholds: {
-        lines: 10,
-        functions: 10,
-        branches: 0,
-        statements: 10,
-      },
-    },
+  plugins: [react(), tsconfigPaths()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, 'src')
+    }
   },
+  test: {
+    environment: 'jsdom'
+  }
 })

@@ -3,59 +3,76 @@
 @tailwind utilities;
 
 :root {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  
+  /* Spacing Scale Base (4px) */
+  --spacing-base: 0.25rem;
 }
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* 1. Canvas */
+    --background: 210 40% 98%;      /* #F8FAFC */
+    
+    /* 2. Text (Primary & Muted) */
+    --foreground: 222.2 84% 4.9%;   /* #020617 */
+    --muted-foreground: 215.4 16.3% 46.9%; /* #64748B */
 
-    --card: 0 0% 100%;
+    /* 3. Surface (Cards, Panels) */
+    --card: 0 0% 100%;              /* #FFFFFF */
     --card-foreground: 222.2 84% 4.9%;
-
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 221.2 83.2% 53.3%;
+    /* 4. Primary (Brand Action) */
+    --primary: 221.2 83.2% 53.3%;   /* #2563EB */
     --primary-foreground: 210 40% 98%;
 
-    --secondary: 210 40% 95.5%;
-    --secondary-foreground: 222.2 47.4% 10.2%;
+    /* 5. Secondary (Subtle Surface/Action) */
+    --secondary: 210 40% 96.1%;     /* #F1F5F9 */
+    --secondary-foreground: 222.2 47.4% 11.2%;
 
-    --muted: 210 40% 95.8%;
-    --muted-foreground: 215.4 16.3% 40%;
+    /* 6. Success */
+    --success-500: 142.1 76.2% 36.3%; /* #16A34A */
 
-    --accent: 210 40% 95.8%;
-    --accent-foreground: 222.2 47.4% 10.2%;
-
-    --destructive: 0 84.2% 60.2%;
+    /* 7. Danger */
+    --destructive: 0 84.2% 60.2%;   /* #DC2626 */
     --destructive-foreground: 210 40% 98%;
+    --danger-500: 0 84.2% 60.2%;    /* Map to destructive */
 
-    --border: 214.3 31.8% 86%;
-    --input: 214.3 31.8% 86%;
+    /* 8. Border/Line */
+    --border: 214.3 31.8% 91.4%;    /* #E2E8F0 */
+    --input: 214.3 31.8% 91.4%;
     --ring: 221.2 83.2% 53.3%;
+    
+    /* Semantic Aliases for Legacy Support (Mapped to Palette) */
+    --muted: 210 40% 96.1%;         /* Same as Secondary */
+    --accent: 210 40% 96.1%;        /* Same as Secondary */
+    --accent-foreground: 222.2 47.4% 11.2%;
+    
+    /* Chart Colors (Contextual) */
+    --smc-bullish: 142.1 76.2% 36.3%;
+    --smc-bearish: 0 84.2% 60.2%;
+    --smc-liquidity: 30 80% 55%;
+
+    --radius: 0.5rem;
   }
 
   .dark {
+    /* Dark Mode Palette */
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
 
-    --card: 222.2 84% 5.9%;
+    --card: 222.2 84% 4.9%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 222.2 84% 5.9%;
+    --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 222.2 47.4% 11.2%;
 
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
@@ -67,18 +84,115 @@
     --accent-foreground: 210 40% 98%;
 
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 85.7% 97.3%;
+    --destructive-foreground: 210 40% 98%;
+    --danger-500: 0 62.8% 30.6%;
 
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
+    --ring: 212.7 26.8% 83.9%;
+    
+    --success-500: 142 70% 50%;
   }
+}
 
+@layer base {
+  * {
+    @apply border-border;
+  }
   body {
-    background-color: hsl(var(--background));
-    color: hsl(var(--foreground));
+    @apply bg-background text-foreground;
   }
-  html, body, #root {
-    transition: background-color 300ms ease, color 300ms ease, border-color 300ms ease;
-  }
+}
+
+/* Focus Zone Utility */
+.focus-dim {
+  @apply transition-opacity duration-300 opacity-40 grayscale-[0.5];
+}
+.focus-active {
+  @apply transition-opacity duration-300 opacity-100 grayscale-0 shadow-lg z-10;
+}
+
+/* Custom Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideInUp {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+@keyframes checkmark {
+  0% { stroke-dashoffset: 24; opacity: 0; }
+  100% { stroke-dashoffset: 0; opacity: 1; }
+}
+
+.animate-shake {
+  animation: shake 0.3s ease-in-out;
+}
+
+.animate-checkmark path {
+  stroke-dasharray: 24;
+  animation: checkmark 0.5s ease-out forwards;
+}
+
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+.animate-slide-in-up {
+  animation: slideInUp 0.4s ease-out forwards;
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s infinite ease-in-out;
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, 
+    rgba(255,255,255,0) 0%, 
+    rgba(255,255,255,0.05) 50%, 
+    rgba(255,255,255,0) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+/* Utility Classes */
+.glass-panel {
+  background: hsl(var(--card) / 0.6);
+  backdrop-filter: blur(12px);
+  border: 1px solid hsl(var(--border) / 0.1);
+}
+
+.text-gradient {
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-image: linear-gradient(to right, hsl(var(--primary)), hsl(var(--primary-300)));
+}
+
+/* Scrollbar Hide */
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
 }

@@ -1,6 +1,12 @@
-import { SMCAnalyzer } from './smcAnalyzer';
-import { ExchangeService } from './exchangeService';
-import { RiskManager } from './riskManager';
+import { WorkerManager } from './workerManager.js';
+import { ExchangeService } from './exchangeService.js';
+import { InstitutionalRiskManager } from './institutionalRisk.js';
+import { TimescaleService } from './persistence/timescaleService.js';
+import { NotificationService } from './notificationService.js';
+import { StrategyMonitor } from './strategyMonitor.js';
+import { HedgingManager } from './hedgingManager.js';
+import { AlternativeDataService } from './alternativeDataService.js';
+import { MarketDataPipeline } from './dataPipeline.js';
 import { 
   MarketData, 
   TradingSignal, 
@@ -9,37 +15,86 @@ import {
   SMCAnalysis,
   ExchangeConfig,
   RiskManagement,
-  RiskStats
-} from '../../../shared/types';
+  RiskStats,
+  HedgingConfig,
+  AlternativeMetrics
+} from '../../../shared/types.js';
 import { v4 as uuidv4 } from 'uuid';
 
 export class TradingEngine {
-  private smcAnalyzer: SMCAnalyzer;
+  private workerManager: WorkerManager;
   private exchangeService: ExchangeService;
-  private riskManager: RiskManager;
+  private riskManager: InstitutionalRiskManager;
+  private dbService: TimescaleService;
+  private notificationService: NotificationService;
+  private strategyMonitor: StrategyMonitor;
+  private hedgingManager: HedgingManager;
+  private alternativeDataService: AlternativeDataService;
+  private dataPipeline: MarketDataPipeline;
   private strategies: Map<string, StrategyConfig> = new Map();
   private activePositions: Map<string, TradePosition> = new Map();
   private marketDataCache: Map<string, MarketData[]> = new Map();
   private isRunning: boolean = false;
+  private systemPaused: boolean = false;
   private analysisInterval: NodeJS.Timeout | null = null;
   private positionUpdateInterval: NodeJS.Timeout | null = null;
 
   constructor(
     exchangeConfigs: ExchangeConfig[],
     riskConfig: RiskManagement,
-    initialBalance: number = 10000
+    initialBalance: number = 10000,
+    dbConnectionString: string = process.env.DATABASE_URL || 'postgres://user:pass@localhost:5432/robocrypto'
   ) {
-    this.smcAnalyzer = new SMCAnalyzer();
+    this.workerManager = new WorkerManager();
     this.exchangeService = new ExchangeService(exchangeConfigs);
-    this.riskManager = new RiskManager(riskConfig, initialBalance);
+    this.riskManager = new InstitutionalRiskManager(riskConfig, initialBalance);
+    this.dbService = new TimescaleService(dbConnectionString);
+    this.notificationService = new NotificationService();
+    this.strategyMonitor = new StrategyMonitor(this.notificationService);
+    this.alternativeDataService = new AlternativeDataService(this.exchangeService);
+    this.dataPipeline = new MarketDataPipeline();
+    
+    // Default Hedging Config
+    const hedgingConfig: HedgingConfig = {
+      enabled: process.env.ENABLE_HEDGING === 'true',
+      hedgeExchange: process.env.HEDGE_EXCHANGE || 'binance',
+      hedgeSymbol: process.env.HEDGE_SYMBOL || 'BTC/USDT',
+      maxDeltaExposure: parseFloat(process.env.HEDGE_MAX_DELTA || '1000'),
+      targetDelta: 0,
+      checkInterval: 60000 // 1 min
+    };
+    this.hedgingManager = new HedgingManager(hedgingConfig, this.exchangeService, this.notificationService);
+
+    // Connect Strategy Monitor Volatility to Hedging Manager
+    this.strategyMonitor.on('volatility', (volatility: number) => {
+      this.hedgingManager.updateMarketVolatility(volatility);
+    });
+
+    // Listen for Strategy Drift (System-wide for now)
+    this.strategyMonitor.on('drift', (data: any) => {
+        this.handleStrategyDrift(data);
+    });
+
+    // Listen for Market Regime Changes
+    this.strategyMonitor.on('regime', (data: any) => {
+        this.handleMarketRegimeChange(data);
+    });
+    
+    // Attempt DB connection (non-blocking)
+    // this.dbService.connect(); // Moved to initialize()
+
+    this.setupDataListeners();
   }
 
-  /**
-   * Inicializa o motor de trading
-   */
-  async initialize(): Promise<void> {
+  public async initialize(): Promise<void> {
     console.log('Inicializando motor de trading...');
     
+    // Connect DB
+    await this.dbService.connect();
+
+    // Start High-Speed Data Stream
+    await this.dataPipeline.startStream();
+
     // Testar conexão com exchanges
     for (const config of this.exchangeService['exchanges'].keys()) {
       const isConnected = await this.exchangeService.testConnection(config);
@@ -52,12 +107,55 @@ export class TradingEngine {
     console.log('Motor de trading inicializado com sucesso');
   }
 
-  /**
-   * Adiciona estratégia de trading
-   */
-  addStrategy(config: StrategyConfig): void {
-    this.strategies.set(config.name, config);
-    console.log(`Estratégia ${config.name} adicionada para ${config.symbol}`);
+  public addStrategy(strategy: StrategyConfig): void {
+    if (!strategy.name) {
+      strategy.name = `Strategy-${Date.now()}`;
+    }
+    this.strategies.set(strategy.name, strategy);
+    console.log(`Estratégia adicionada: ${strategy.name} (${strategy.symbol})`);
+  }
+
+  public async getStats(): Promise<any> {
+    const workerStats = await this.workerManager.getAllWorkerMetrics();
+    return {
+      activePositions: this.activePositions.size,
+      isRunning: this.isRunning,
+      systemPaused: this.systemPaused,
+      hedgingPosition: this.hedgingManager.getCurrentHedgePosition(),
+      riskMetrics: this.riskManager.getRiskStats(),
+      workerStats
+    };
+  }
+
+  public getStrategies(): StrategyConfig[] {
+    return Array.from(this.strategies.values());
+  }
+
+  public getActivePositions(): TradePosition[] {
+    return Array.from(this.activePositions.values());
+  }
+
+  public reset(options: { preserveSettings: boolean, initialBalance?: number }): any {
+    this.stop();
+    this.activePositions.clear();
+    this.marketDataCache.clear();
+    
+    if (!options.preserveSettings) {
+        this.strategies.clear();
+    }
+    
+    return this.getStats();
+  }
+
+  private setupDataListeners() {
+      this.dataPipeline.on('price_update', (update) => {
+          // Real-time updates!
+          // We can use this to update position PnL immediately
+          // or trigger high-frequency logic
+          
+          // Example: Update Monitor metrics
+          this.strategyMonitor.updateMetrics(update.price);
+      });
   }
 
   /**
@@ -114,10 +212,47 @@ export class TradingEngine {
   }
 
   /**
+   * Handle Strategy Drift Detection
+   */
+  private handleStrategyDrift(data: any) {
+      console.warn(`[TradingEngine] Strategy Drift Detected:`, data);
+      
+      if (data.detected && data.severity === 'HIGH') {
+          console.error('[TradingEngine] CRITICAL DRIFT - Pausing System');
+          this.systemPaused = true;
+          this.notificationService.send(`CRITICAL: Strategy Drift Detected. Trading Paused. Z-Score: ${data.details.z_score}`);
+      }
+  }
+
+  /**
+   * Handle Market Regime Change
+   */
+  private handleMarketRegimeChange(data: any) {
+      console.log(`[TradingEngine] Market Regime Change: ${data.current}`);
+      
+      // Adapt strategies based on regime
+      // For now, we just log and check for extreme volatility
+      if (data.current.includes('EXTREME')) {
+          console.warn('[TradingEngine] Extreme Volatility Regime - Pausing System');
+          this.systemPaused = true;
+          this.notificationService.send(`WARNING: Extreme Market Volatility (${data.current}). Trading Paused.`);
+      } else if (this.systemPaused && !data.current.includes('EXTREME')) {
+          // Auto-resume if volatility drops? 
+          // Maybe safer to require manual resume, but for now let's log suggestion
+          console.log('[TradingEngine] Volatility normalized. System remains paused until manual reset or implemented auto-resume.');
+      }
+  }
+
+  /**
    * Analisa mercado para todas as estratégias ativas
    */
   private async analyzeMarket(): Promise<void> {
     if (!this.isRunning) return;
+
+    if (this.systemPaused) {
+        console.warn('Trading Paused due to System Alert (Drift/Risk). Skipping analysis.');
+        return;
+    }
 
     console.log('Analisando mercado...');
 
@@ -146,30 +281,75 @@ export class TradingEngine {
       100
     );
 
-    // Configurar analisador SMC com parâmetros da estratégia
-    this.smcAnalyzer = new SMCAnalyzer({
-      minLiquidityStrength: smcParams.minLiquidityStrength,
-      minOrderBlockStrength: smcParams.minOrderBlockStrength,
-      minFvgSize: smcParams.minFvgSize
-    });
-
-    // Realizar análise SMC
-    const analysis = this.smcAnalyzer.analyze(marketData);
+    // Realizar análise SMC via Worker
+    const analysis = await this.workerManager.executeAnalysis(symbol, marketData, config);
     
     // Obter preço atual
     const ticker = await this.exchangeService.getTicker('binance', symbol);
     const currentPrice = ticker.last;
 
-    // Gerar sinais
-    const signals = this.smcAnalyzer.generateSignals(analysis, currentPrice, timeframe);
+    // Monitor Strategy Health (Regime Detection)
+    this.strategyMonitor.updateMetrics(currentPrice);
+
+    // Get Alternative Data (Task 3)
+    let altMetrics: AlternativeMetrics | undefined;
+    try {
+        altMetrics = await this.alternativeDataService.getAlternativeMetrics(symbol);
+    } catch (err) {
+        console.warn(`Could not fetch alt data for ${symbol}:`, err);
+    }
+
+    // Gerar sinais via Worker
+    const signals = await this.workerManager.generateSignals(
+        symbol, 
+        analysis, 
+        currentPrice, 
+        timeframe, 
+        marketData, 
+        config
+    );
 
     // Processar sinais
     for (const signal of signals) {
+      if (altMetrics) {
+        this.refineSignalWithAlternativeData(signal, altMetrics);
+      }
       await this.processSignal(signal, config, analysis);
     }
 
     // Cache dos dados para análise posterior
     this.marketDataCache.set(`${symbol}_${timeframe}`, marketData);
+    
+    // Async DB Save (Fire and forget)
+    this.dbService.saveMarketData(symbol, marketData).catch(err => {
+        console.warn(`Failed to persist market data for ${symbol}: ${err.message}`);
+    });
+  }
+
+  /**
+   * Refina sinal usando dados alternativos
+   */
+  private refineSignalWithAlternativeData(signal: TradingSignal, metrics: AlternativeMetrics) {
+    let scoreModifier = 0;
+    const sentimentScore = metrics.sentiment.reduce((acc, s) => acc + s.score, 0) / (metrics.sentiment.length || 1);
+    
+    // Sentiment Logic
+    // Positive Sentiment supports BUY
+    if (signal.type === 'BUY' && sentimentScore > 0.3) scoreModifier += 0.1;
+    // Negative Sentiment supports SELL
+    if (signal.type === 'SELL' && sentimentScore < -0.3) scoreModifier += 0.1;
+    
+    // Derivatives Logic (Funding Rate)
+    // High Positive Funding (>0.01%) -> Crowded Longs -> Potential Reversal Down -> Boost SELL
+    if (metrics.derivatives.fundingRate > 0.0001 && signal.type === 'SELL') scoreModifier += 0.1;
+    // High Negative Funding (<-0.01%) -> Crowded Shorts -> Potential Reversal Up -> Boost BUY
+    if (metrics.derivatives.fundingRate < -0.0001 && signal.type === 'BUY') scoreModifier += 0.1;
+
+    signal.confidence = Math.min(0.99, Math.max(0.1, signal.confidence + scoreModifier));
+    
+    if (Math.abs(scoreModifier) > 0.01) {
+        signal.reason += ` [AltData: ${scoreModifier > 0 ? '+' : ''}${scoreModifier.toFixed(2)}]`;
+    }
   }
 
   /**
@@ -187,6 +367,28 @@ export class TradingEngine {
       console.log(`Sinal rejeitado: ${validation.reason}`);
       return;
     }
+
+    // --- Institutional Risk Check (VaR) ---
+    // Calculate VaR before entering a new trade
+    // We need historical data for this. Using cached data if available.
+    const cachedData = this.marketDataCache.get(`${config.symbol}_${config.timeframe}`);
+    if (cachedData && cachedData.length > 100) {
+      const returns = cachedData.slice(1).map((c, i) => (c.close - cachedData[i].close) / cachedData[i].close);
+      const currentPositions = Array.from(this.activePositions.values());
+      const currentVaR = this.riskManager.calculateVaR(currentPositions, returns);
+      
+      // If current VaR + estimated new trade risk > Max Daily Loss threshold (as proxy for capital limit)
+      // This is a simplified check. In reality, we'd add the new trade to the portfolio and recalc VaR.
+      const riskConfig = this.riskManager.getConfiguration();
+      const balance = this.riskManager.getAccountBalance();
+      const maxAllowedVaR = riskConfig.maxDailyLoss * (balance / 100);
+      
+      if (currentVaR > maxAllowedVaR) {
+        console.warn(`Sinal rejeitado: VaR (${currentVaR.toFixed(2)}) excede limite de risco (${maxAllowedVaR.toFixed(2)})`);
+        return;
+      }
+    }
+    // --------------------------------------
 
     // Usar preços ajustados se necessário
     const entryPrice = signal.entryPrice;
@@ -221,15 +423,42 @@ export class TradingEngine {
 
     // Executar ordem na exchange
     try {
-      const _orderResult = await this.exchangeService.createOrderWithStopLossAndTakeProfit(
-        'binance',
-        config.symbol,
-        signal.type === 'BUY' ? 'buy' : 'sell',
-        positionSize,
-        entryPrice,
-        stopLoss,
-        takeProfit
-      );
+      let _orderResult;
+      
+      // Algorithmic Execution Decision
+      // If position size > threshold (e.g., $100k or specific quantity), use Algo
+      const positionValue = positionSize * entryPrice;
+      const ALGO_THRESHOLD = 50000; // Example: $50k
+
+      if (positionValue > ALGO_THRESHOLD) {
+        console.log(`Large order detected ($${positionValue.toFixed(2)}). Engaging TWAP.`);
+        // Execute over 60 minutes in 12 slices (every 5 mins)
+        // Note: This is async and might not return immediately with a single order ID
+        // For simplicity in this loop, we await it, but in HFT this would be spun off
+        await this.exchangeService.executeTWAP(
+           'binance',
+           config.symbol,
+           signal.type === 'BUY' ? 'buy' : 'sell',
+           positionSize,
+           60, // duration minutes
+           12  // slices
+        );
+        // We'd need to aggregate results for the 'position' object
+      } else {
+        // Standard Execution
+        _orderResult = await this.exchangeService.createOrderWithStopLossAndTakeProfit(
+          'binance',
+          config.symbol,
+          signal.type === 'BUY' ? 'buy' : 'sell',
+          positionSize,
+          entryPrice,
+          stopLoss,
+          takeProfit // Pass the full array of TPs
+        );
+      }
+
+      // Persist Signal
+      this.dbService.saveSignal(config.symbol, signal).catch(console.error);
 
       // Registrar posição
       this.riskManager.registerPosition(position);
@@ -252,6 +481,13 @@ export class TradingEngine {
     if (!this.isRunning) return;
 
     console.log('Atualizando posições...');
+
+    // Check Portfolio Hedging
+    try {
+      await this.hedgingManager.evaluatePortfolio(Array.from(this.activePositions.values()));
+    } catch (error) {
+      console.error('Erro na avaliação de hedging:', error);
+    }
 
     for (const [positionId, position] of this.activePositions) {
       if (position.status !== 'OPEN') continue;
@@ -282,17 +518,64 @@ export class TradingEngine {
     
     if (newStopLoss !== position.stopLoss) {
       console.log(`Ajustando stop loss para break-even: ${newStopLoss}`);
-      // Atualizar stop loss na exchange (implementar)
-      position.stopLoss = newStopLoss;
+      try {
+        const side = position.type === 'LONG' ? 'sell' : 'buy';
+        const updatedOrder = await this.exchangeService.updateStopLoss(
+            'binance',
+            position.symbol,
+            side,
+            position.quantity,
+            newStopLoss,
+            position.stopLossOrderId
+        );
+        position.stopLoss = newStopLoss;
+        position.stopLossOrderId = updatedOrder.id;
+        console.log(`Stop loss atualizado na exchange. Novo ID: ${updatedOrder.id}`);
+      } catch (error) {
+        console.error(`Falha ao atualizar stop loss na exchange:`, error);
+      }
     }
 
     // Verificar saída parcial
     const profitLevels = [0.02, 0.04, 0.06]; // 2%, 4%, 6%
     const partialExit = this.riskManager.shouldTakePartialProfit(position, currentPrice, profitLevels);
 
-    if (partialExit.shouldExit) {
+    if (partialExit.shouldExit && partialExit.exitAmount > 0) {
       console.log(`Saindo parcialmente: ${partialExit.exitAmount} @ ${partialExit.exitPrice}`);
-      // Executar saída parcial (implementar)
+      try {
+        const side = position.type === 'LONG' ? 'sell' : 'buy';
+        // Executar saída parcial a mercado
+        const exitOrder = await this.exchangeService.createMarketOrder(
+            'binance',
+            position.symbol,
+            side,
+            partialExit.exitAmount
+        );
+
+        // Atualizar posição
+        const pnl = position.type === 'LONG' 
+            ? (partialExit.exitPrice - position.entryPrice) * partialExit.exitAmount
+            : (position.entryPrice - partialExit.exitPrice) * partialExit.exitAmount;
+        
+        position.quantity -= partialExit.exitAmount;
+        position.realizedPnl = (position.realizedPnl || 0) + pnl;
+        
+        // Update triggered levels
+        if (!position.triggeredTpLevels) position.triggeredTpLevels = [];
+        if (partialExit.levelIndex !== undefined) {
+            position.triggeredTpLevels.push(partialExit.levelIndex);
+        }
+
+        console.log(`Saída parcial executada. PnL realizado nesta fatia: ${pnl.toFixed(2)}`);
+        
+        // Se a posição ficar zerada ou muito pequena, fechar completamente
+        if (position.quantity <= 0.00001) { // Threshold pequeno arbitrário
+            await this.closePosition(position, 'Fechamento residual após saída parcial');
+        }
+
+      } catch (error) {
+        console.error(`Falha ao executar saída parcial:`, error);
+      }
     }
 
     // Verificar se posição deve ser fechada
@@ -369,6 +652,11 @@ export class TradingEngine {
       position.closeTime = Date.now();
       position.realizedPnl = realizedPnl;
 
+      // Update Strategy Monitor with Return % for Drift Detection
+      const returnPct = realizedPnl / (position.entryPrice * position.quantity);
+      this.strategyMonitor.updateMetrics(currentPrice, returnPct);
+      this.notificationService.notifyPositionClosed(position, reason);
+
       // Remover das posições ativas
       this.activePositions.delete(position.id);
 
@@ -395,6 +683,9 @@ export class TradingEngine {
     console.log(`Liquidez: ${analysis.liquidityZones.length} zonas`);
     console.log(`Order Blocks: ${analysis.orderBlocks.length} blocos`);
     console.log(`================`);
+
+    this.notificationService.notifySignal(signal, analysis);
+    this.notificationService.notifyPosition(position, signal);
   }
 
   /**
@@ -403,38 +694,5 @@ export class TradingEngine {
   private async loadStrategies(): Promise<void> {
     // Implementar carregamento do banco de dados
     console.log('Carregando estratégias salvas...');
-  }
-
-  /**
-   * Obtém estatísticas do motor
-   */
-  getStats(): {
-    activeStrategies: number;
-    activePositions: number;
-    totalTrades: number;
-    riskStats: RiskStats;
-    isRunning: boolean;
-  } {
-    return {
-      activeStrategies: this.strategies.size,
-      activePositions: this.activePositions.size,
-      totalTrades: this.activePositions.size, // Implementar contador real
-      riskStats: this.riskManager.getRiskStats(),
-      isRunning: this.isRunning
-    };
-  }
-
-  /**
-   * Obtém posições ativas
-   */
-  getActivePositions(): TradePosition[] {
-    return Array.from(this.activePositions.values());
-  }
-
-  /**
-   * Obtém estratégias
-   */
-  getStrategies(): StrategyConfig[] {
-    return Array.from(this.strategies.values());
   }
 }

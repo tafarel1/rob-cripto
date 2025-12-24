@@ -232,16 +232,24 @@ class SMCAnalyzer {
   generateSignals(analysis) {
     const signals = [];
     
+    // Refinamento Market Analyst: Stops e TPs baseados em estrutura, não % fixo
+    
     // Sinais baseados em zonas de liquidez
     analysis.liquidityZones.forEach(zone => {
-      if (zone.strength > 0.7) {
+      if (zone.strength > 0.6) { // Ajuste de threshold
+        const atr = zone.price * 0.01; // Fallback para ATR simulado (1%)
+        
         signals.push({
           type: zone.type === 'buy_side' ? 'BUY' : 'SELL',
           entry: zone.price,
-          stopLoss: zone.type === 'buy_side' ? zone.price * 0.98 : zone.price * 1.02,
-          takeProfit: zone.type === 'buy_side' ? [zone.price * 1.03, zone.price * 1.05] : [zone.price * 0.97, zone.price * 0.95],
+          // Market Analyst: Stop deve proteger abaixo da zona
+          stopLoss: zone.type === 'buy_side' ? zone.price - (atr * 1.5) : zone.price + (atr * 1.5),
+          // Market Analyst: Risk/Reward mínimo de 1:2
+          takeProfit: zone.type === 'buy_side' 
+            ? [zone.price + (atr * 3), zone.price + (atr * 5)] 
+            : [zone.price - (atr * 3), zone.price - (atr * 5)],
           confidence: zone.strength,
-          reason: `Zona de liquidez ${zone.type} identificada`,
+          reason: `Zona de liquidez ${zone.type} (Z-Score Strength)`,
           timestamp: zone.timestamp
         });
       }
@@ -250,13 +258,18 @@ class SMCAnalyzer {
     // Sinais baseados em order blocks
     analysis.orderBlocks.forEach(ob => {
       if (ob.strength > 0.6) {
+        const blockHeight = Math.abs(ob.range[1] - ob.range[0]);
+        
         signals.push({
           type: ob.type === 'bullish' ? 'BUY' : 'SELL',
           entry: ob.price,
-          stopLoss: ob.type === 'bullish' ? ob.range[0] : ob.range[1],
-          takeProfit: ob.type === 'bullish' ? [ob.price * 1.04, ob.price * 1.07] : [ob.price * 0.96, ob.price * 0.93],
+          // Market Analyst: Stop logo após o Order Block
+          stopLoss: ob.type === 'bullish' ? ob.range[0] - (blockHeight * 0.5) : ob.range[1] + (blockHeight * 0.5),
+          takeProfit: ob.type === 'bullish' 
+            ? [ob.price + (blockHeight * 3), ob.price + (blockHeight * 5)] 
+            : [ob.price - (blockHeight * 3), ob.price - (blockHeight * 5)],
           confidence: ob.strength,
-          reason: `Order block ${ob.type} identificado`,
+          reason: `Order block ${ob.type} validado`,
           timestamp: ob.timestamp
         });
       }
@@ -283,6 +296,126 @@ class SMCAnalyzer {
       .slice(0, 5); // Limitar a 5 sinais
   }
 
+  // Detecção de Wash Trading e Anomalias
+  analyzeWashTrading(candles) {
+    const suspiciousActivities = [];
+    if (candles.length < 20) return suspiciousActivities;
+    
+    const avgVolume = candles.reduce((sum, c) => sum + c.volume, 0) / candles.length;
+    const recentCandles = candles.slice(-10);
+    
+    recentCandles.forEach(candle => {
+      // 1. Volume Spike (> 5x média)
+      if (candle.volume > avgVolume * 5) {
+        suspiciousActivities.push({
+          type: 'volume_spike',
+          timestamp: candle.timestamp,
+          details: `Volume ${Math.round(candle.volume / avgVolume)}x maior que a média`,
+          severity: 'high'
+        });
+      }
+      
+      // 2. Doji com volume alto (Potencial churn/wash)
+      const bodySize = Math.abs(candle.open - candle.close);
+      const totalRange = candle.high - candle.low;
+      if (bodySize < totalRange * 0.1 && candle.volume > avgVolume * 2) {
+        suspiciousActivities.push({
+          type: 'high_vol_doji',
+          timestamp: candle.timestamp,
+          details: 'Indecisão extrema com alto volume (potencial churn)',
+          severity: 'medium'
+        });
+      }
+    });
+    
+    return suspiciousActivities;
+  }
+
+  // Análise de Premium/Discount Zones
+  analyzePremiumDiscountZones(candles, lookback = 50) {
+    const recentCandles = candles.slice(-lookback);
+    let highestHigh = -Infinity;
+    let lowestLow = Infinity;
+    
+    recentCandles.forEach(c => {
+      if (c.high > highestHigh) highestHigh = c.high;
+      if (c.low < lowestLow) lowestLow = c.low;
+    });
+    
+    // Evitar infinito se array vazio
+    if (highestHigh === -Infinity || lowestLow === Infinity) return null;
+
+    const equilibrium = (highestHigh + lowestLow) / 2;
+    const currentPrice = candles[candles.length - 1].close;
+    
+    return {
+      high: highestHigh,
+      low: lowestLow,
+      equilibrium: equilibrium,
+      status: currentPrice > equilibrium ? 'PREMIUM' : 'DISCOUNT'
+    };
+  }
+
+  // Análise de Liquidez de Sessão (Highs/Lows Diários)
+  analyzeSessionLiquidity(candles) {
+    if (!candles.length) return null;
+
+    const lastTimestamp = candles[candles.length - 1].timestamp;
+    const oneDay = 24 * 60 * 60 * 1000;
+    // Filtrar velas das últimas 24h apenas para timeframes intraday
+    // Para timeframes diário (1d) ou semanal (1w), não faz sentido filtrar últimas 24h da mesma forma
+    // Se timeframe for diário ou maior, podemos pular a análise de sessões intraday ou adaptá-la
+    
+    // Assumindo que velas diárias/semanais têm gap entre timestamps maior que 1 dia
+    const timeDiff = candles[1].timestamp - candles[0].timestamp;
+    const isIntraday = timeDiff < 24 * 60 * 60 * 1000;
+
+    if (!isIntraday) {
+        return null; // Não calcular sessões intraday para gráficos diários/semanais
+    }
+
+    const recentCandles = candles.filter(c => c.timestamp > lastTimestamp - oneDay);
+
+    const sessions = {
+      asia: { high: -Infinity, low: Infinity, label: 'Asia' },
+      london: { high: -Infinity, low: Infinity, label: 'London' },
+      newYork: { high: -Infinity, low: Infinity, label: 'NY' }
+    };
+
+    recentCandles.forEach(c => {
+      const date = new Date(c.timestamp);
+      const hour = date.getUTCHours();
+      
+      // Asia: 00-08 UTC (Aprox)
+      if (hour >= 0 && hour < 8) {
+        if (c.high > sessions.asia.high) sessions.asia.high = c.high;
+        if (c.low < sessions.asia.low) sessions.asia.low = c.low;
+      }
+      
+      // London: 07-15 UTC
+      if (hour >= 7 && hour < 15) {
+        if (c.high > sessions.london.high) sessions.london.high = c.high;
+        if (c.low < sessions.london.low) sessions.london.low = c.low;
+      }
+      
+      // NY: 12-20 UTC
+      if (hour >= 12 && hour < 20) {
+        if (c.high > sessions.newYork.high) sessions.newYork.high = c.high;
+        if (c.low < sessions.newYork.low) sessions.newYork.low = c.low;
+      }
+    });
+
+    // Limpar sessões sem dados
+    const result = {};
+    Object.keys(sessions).forEach(key => {
+      if (sessions[key].high > -Infinity) {
+        result[key] = sessions[key];
+      }
+    });
+
+    return result;
+  }
+
   // Análise completa do mercado
   async analyzeMarket(symbol = 'BTC/USDT', timeframe = '1h', limit = 200) {
     try {
@@ -307,7 +440,10 @@ class SMCAnalyzer {
         orderBlocks: this.analyzeOrderBlocks(candles),
         fairValueGaps: this.analyzeFairValueGaps(candles),
         marketStructures: this.analyzeMarketStructure(candles),
-        candles: candles.slice(-20) // Últimas 20 velas para referência
+        washTrading: this.analyzeWashTrading(candles),
+        premiumDiscount: this.analyzePremiumDiscountZones(candles),
+        sessionLiquidity: this.analyzeSessionLiquidity(candles),
+        candles: candles // Retornar todas as velas para o gráfico
       };
       
       // Gerar sinais

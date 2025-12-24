@@ -122,6 +122,20 @@ app.post('/api/exchange/disconnect', async (req, res) => {
   }
 });
 
+app.get('/api/exchange/ticker', async (req, res) => {
+  try {
+    const { symbol } = req.query;
+    const result = await exchangeManager.getTicker(symbol);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: Date.now()
+    });
+  }
+});
+
 app.post('/api/trading/start', (req, res) => {
   try {
     console.log('🚀 Iniciando trading bot - Modo Economia Ativo');

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { toggleTheme, getInitialTheme } from './utils'
+import { toggleTheme, getInitialTheme } from '@/hooks/utils'
 
 describe('hook utils', () => {
   it('toggleTheme switches between light and dark', () => {
@@ -17,4 +17,3 @@ describe('hook utils', () => {
     expect(getInitialTheme(false)).toBe('light')
   })
 })
-

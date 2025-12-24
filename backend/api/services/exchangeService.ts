@@ -271,6 +271,140 @@ export class ExchangeService {
     }
   }
 
+  async getFundingRate(exchangeName: string, symbol: string): Promise<number> {
+    const exchange = this.exchanges.get(exchangeName);
+    if (!exchange) throw new Error(`Exchange ${exchangeName} não encontrada`);
+    
+    try {
+      if (exchange.has['fetchFundingRate']) {
+        const rate = await exchange.fetchFundingRate(symbol);
+        return rate.fundingRate || 0;
+      }
+      return 0;
+    } catch (error) {
+      console.error(`Erro ao obter funding rate para ${symbol}:`, error);
+      return 0;
+    }
+  }
+
+  async getOpenInterest(exchangeName: string, symbol: string): Promise<number> {
+    const exchange = this.exchanges.get(exchangeName);
+    if (!exchange) throw new Error(`Exchange ${exchangeName} não encontrada`);
+    
+    try {
+      if (exchange.has['fetchOpenInterest']) {
+        const oi = await exchange.fetchOpenInterest(symbol);
+        // CCXT normalizes to openInterestAmount or openInterestValue
+        // We prefer value (USD) if available, else estimate with amount * price
+        if (oi.openInterestValue) return oi.openInterestValue;
+        if (oi.openInterestAmount) {
+            const ticker = await exchange.fetchTicker(symbol);
+            return oi.openInterestAmount * (ticker.last || 0);
+        }
+        return 0;
+      }
+      return 0;
+    } catch (error) {
+      console.error(`Erro ao obter open interest para ${symbol}:`, error);
+      return 0;
+    }
+  }
+
+  /**
+   * Executes a Time-Weighted Average Price (TWAP) order.
+   * Splits a large order into smaller chunks executed over a specified duration.
+   */
+  async executeTWAP(
+    exchangeName: string,
+    symbol: string,
+    side: 'buy' | 'sell',
+    totalAmount: number,
+    durationMinutes: number,
+    slices: number
+  ): Promise<ExchangeOrder[]> {
+    const exchange = this.exchanges.get(exchangeName);
+    if (!exchange) throw new Error(`Exchange ${exchangeName} não encontrada`);
+
+    const sliceAmount = totalAmount / slices;
+    const intervalMs = (durationMinutes * 60 * 1000) / slices;
+    const executedOrders: ExchangeOrder[] = [];
+
+    console.log(`Starting TWAP: ${side} ${totalAmount} ${symbol} in ${slices} slices over ${durationMinutes} min`);
+
+    for (let i = 0; i < slices; i++) {
+      try {
+        console.log(`Executing TWAP slice ${i + 1}/${slices}: ${sliceAmount} ${symbol}`);
+        
+        // Execute slice as a market order (or limit if preferred)
+        const order = await this.createMarketOrder(exchangeName, symbol, side, sliceAmount);
+        executedOrders.push(order);
+
+        // Wait for next interval if not the last slice
+        if (i < slices - 1) {
+          await new Promise(resolve => setTimeout(resolve, intervalMs));
+        }
+      } catch (error) {
+        console.error(`TWAP slice ${i + 1} failed:`, error);
+        // Continue to next slice? Or abort? 
+        // For robustness, we might want to retry or abort. Here we continue.
+      }
+    }
+    
+    return executedOrders;
+  }
+
+  /**
+   * Executes an Iceberg order.
+   * Displays only a small visible quantity (tip) to the market, refilling as it gets filled.
+   */
+  async executeIceberg(
+    exchangeName: string,
+    symbol: string,
+    side: 'buy' | 'sell',
+    totalAmount: number,
+    visibleAmount: number,
+    limitPrice: number
+  ): Promise<ExchangeOrder[]> {
+    const exchange = this.exchanges.get(exchangeName);
+    if (!exchange) throw new Error(`Exchange ${exchangeName} não encontrada`);
+
+    let remainingAmount = totalAmount;
+    const orders: ExchangeOrder[] = [];
+
+    console.log(`Starting Iceberg: ${side} ${totalAmount} ${symbol} @ ${limitPrice} (Visible: ${visibleAmount})`);
+
+    while (remainingAmount > 0) {
+      const currentQty = Math.min(remainingAmount, visibleAmount);
+      
+      try {
+        // Place limit order for visible amount
+        const order = await this.createLimitOrder(exchangeName, symbol, side, currentQty, limitPrice);
+        orders.push(order);
+        
+        // Wait for fill (Polling logic - simplified)
+        // In production, this should listen to websocket updates
+        let filled = false;
+        while (!filled) {
+           const checkedOrder = await exchange.fetchOrder(order.id, symbol);
+           if (checkedOrder.status === 'closed') {
+             remainingAmount -= (checkedOrder.filled ?? 0);
+             filled = true;
+             console.log(`Iceberg slice filled. Remaining: ${remainingAmount}`);
+           } else if (checkedOrder.status === 'canceled') {
+             throw new Error('Iceberg slice canceled manually');
+           } else {
+             await new Promise(resolve => setTimeout(resolve, 2000)); // Poll every 2s
+           }
+        }
+      } catch (error) {
+        console.error('Iceberg execution interrupted:', error);
+        break;
+      }
+    }
+
+    return orders;
+  }
+
   /**
    * Mapeia ordem da exchange para nosso formato
    */
@@ -421,5 +555,30 @@ export class ExchangeService {
       stopLossOrder,
       takeProfitOrders
     };
+  }
+
+  /**
+   * Atualiza Stop Loss (Cancela anterior e cria novo)
+   */
+  async updateStopLoss(
+    exchangeName: string,
+    symbol: string,
+    side: 'buy' | 'sell',
+    amount: number,
+    newStopPrice: number,
+    oldOrderId?: string
+  ): Promise<ExchangeOrder> {
+    // 1. Cancel old order if exists
+    if (oldOrderId) {
+        await this.cancelOrder(exchangeName, oldOrderId, symbol);
+    }
+
+    // 2. Create new Stop Order
+    // Note: Assuming "Stop Market" behavior (trigger price = stopPrice, execution = market or limit)
+    // Here we reuse createStopOrder which might be Stop Limit or Stop Market depending on implementation
+    // We'll pass price=newStopPrice to make it a Stop Limit at the stop price, 
+    // or we could leave price undefined for Stop Market if supported.
+    // Given the previous usage `createStopOrder(..., stopLoss, stopLoss)`, it seems to be Stop Limit.
+    return this.createStopOrder(exchangeName, symbol, side, amount, newStopPrice, newStopPrice);
   }
 }

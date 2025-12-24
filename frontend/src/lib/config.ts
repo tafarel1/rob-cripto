@@ -1,5 +1,6 @@
 export const API_CONFIG = {
-  baseURL: (import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? 'http://localhost:3000' : '')),
+  // Use relative path in dev to leverage Vite proxy, avoiding CORS issues
+  baseURL: (import.meta.env.VITE_API_URL ?? ''),
   endpoints: {
     exchange: {
       status: '/api/exchange/status',

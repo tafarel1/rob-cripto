@@ -1,10 +1,10 @@
-import TelegramBot from 'node-telegram-bot-api';
+import { Telegraf } from 'telegraf';
 import nodemailer from 'nodemailer';
-import { TradePosition, TradingSignal, SMCAnalysis } from '../../../shared/types';
+import { TradePosition, TradingSignal, SMCAnalysis } from '../../../shared/types.js';
 
 export class NotificationService {
-  private telegramBot: { sendMessage: (chatId: string, message: string, options?: { parse_mode?: string; disable_web_page_preview?: boolean }) => Promise<unknown> } | null = null;
-  private emailTransporter: { sendMail: (options: { from: string; to: string; subject: string; text?: string; html?: string }) => Promise<unknown> } | null = null;
+  private telegramBot: Telegraf | null = null;
+  private emailTransporter: nodemailer.Transporter | null = null;
   private telegramChatId: string | null = null;
 
   constructor() {
@@ -21,7 +21,7 @@ export class NotificationService {
 
     if (telegramToken && this.telegramChatId) {
       try {
-        this.telegramBot = new TelegramBot(telegramToken, { polling: false });
+        this.telegramBot = new Telegraf(telegramToken);
         console.log('Serviço de Telegram inicializado');
       } catch (error) {
         console.error('Erro ao inicializar Telegram:', error);
@@ -284,18 +284,13 @@ ${emoji} *Resultado do Dia:*
   }
 
   /**
-   * Envia mensagem via Telegram
+   * Helper para enviar mensagem Telegram
    */
-  private async sendTelegramMessage(message: string): Promise<void> {
-    if (!this.telegramBot || !this.telegramChatId) {
-      return;
-    }
+  public async sendTelegramMessage(message: string): Promise<void> {
+    if (!this.telegramBot || !this.telegramChatId) return;
 
     try {
-      await this.telegramBot.sendMessage(this.telegramChatId, message, {
-        parse_mode: 'Markdown',
-        disable_web_page_preview: true
-      });
+      await this.telegramBot.telegram.sendMessage(this.telegramChatId, message, { parse_mode: 'Markdown' });
     } catch (error) {
       console.error('Erro ao enviar mensagem Telegram:', error);
     }
@@ -343,7 +338,7 @@ ${emoji} *Resultado do Dia:*
     // Testar Telegram
     if (this.telegramBot && this.telegramChatId) {
       try {
-        await this.telegramBot.sendMessage(this.telegramChatId, '🔧 Teste de notificação Telegram - Robo Cripto');
+        await this.telegramBot.telegram.sendMessage(this.telegramChatId, '🔧 Teste de notificação Telegram - Robo Cripto');
         results.telegram = true;
       } catch (error) {
         console.error('Falha no teste Telegram:', error);

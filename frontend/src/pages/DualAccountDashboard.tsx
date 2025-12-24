@@ -2,18 +2,12 @@ import React, { useState } from 'react';
 import AccountModeSelector from '@/components/account/AccountModeSelector';
 import DualAccountSystemTest from '@/components/account/DualAccountSystemTest';
 import { useAccountManager } from '@/components/account/useAccountManager';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
-  Settings, 
-  TestTube,
-  Zap,
-  Bot,
-  Home
-} from 'lucide-react';
-import { Link } from 'react-router-dom';
-import HeaderBar from '@/components/layout/HeaderBar';
+  SettingsIcon, 
+  TestTubeIcon
+} from '@/components/ui/icons';
 
 export default function DualAccountDashboard() {
   const { currentMode } = useAccountManager();
@@ -31,24 +25,22 @@ export default function DualAccountDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      <HeaderBar rightItems={
-        <div className="ml-6">
+      <div className="mb-6 flex justify-end pt-4 px-4 sm:px-6 lg:px-8">
           <Badge className={`${getModeColor(currentMode)} border-2 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800`}>
             {getModeIcon(currentMode)} {currentMode} Mode
           </Badge>
-        </div>
-      } />
+      </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-0">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-2 lg:grid-cols-2 w-full">
-            <TabsTrigger value="mode-selector" className="flex items-center space-x-2">
-              <Settings className="w-4 h-4" />
+          <TabsList className="grid grid-cols-1 sm:grid-cols-2 w-full h-auto gap-2 sm:gap-0">
+            <TabsTrigger value="mode-selector" className="flex items-center justify-center space-x-2 py-3">
+              <SettingsIcon className="w-4 h-4" />
               <span>Mode Selector</span>
             </TabsTrigger>
-            <TabsTrigger value="testing" className="flex items-center space-x-2">
-              <TestTube className="w-4 h-4" />
+            <TabsTrigger value="testing" className="flex items-center justify-center space-x-2 py-3">
+              <TestTubeIcon className="w-4 h-4" />
               <span>System Test</span>
             </TabsTrigger>
           </TabsList>

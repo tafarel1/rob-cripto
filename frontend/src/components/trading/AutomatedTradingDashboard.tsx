@@ -6,33 +6,33 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
-  Play, 
-  Square, 
-  Settings, 
-  TrendingUp, 
-  AlertTriangle,
-  Clock,
-  DollarSign,
-  Target,
-  BarChart3,
-  Zap,
-  RefreshCw,
-  Shield,
-  Activity,
-  Cog,
-  Bot,
-  FileDown,
-  LineChart,
-  PieChart,
-  Home
-} from 'lucide-react';
-import { Link } from 'react-router-dom';
+  PlayIcon, 
+  SquareIcon, 
+  SettingsIcon, 
+  TrendingUpIcon, 
+  AlertTriangleIcon,
+  ClockIcon,
+  DollarIcon,
+  TargetIcon,
+  BarChart3Icon,
+  RefreshIcon,
+  ShieldIcon,
+  ActivityIcon,
+  CogIcon,
+  FileDownIcon,
+  LineChartIcon,
+  PieChartIcon,
+  SplitSquareHorizontalIcon
+} from '@/components/ui/icons';
 import { toast } from 'sonner';
 import { useAccountManager } from '@/components/account/useAccountManager';
-import AutomatedTradingConfig from './AutomatedTradingConfig';
+import AutomatedTradingConfig from '@/components/trading/AutomatedTradingConfig';
+import SplitView from '@/components/layout/SplitView';
 import { useExchange } from '@/hooks/useExchange';
-import HeaderBar from '@/components/layout/HeaderBar';
- 
+import { useSocket } from '@/hooks/useSocket';
+import { useDashboard, RobotStatus } from '@/contexts/DashboardContext'; 
+import { useCrossDashboardEvents } from '@/hooks/useCrossDashboardEvents'; 
+import { API_CONFIG } from '@/lib/config';
 
 interface EngineStatus {
   status: 'NOT_INITIALIZED' | 'RUNNING' | 'STOPPED' | 'EMERGENCY_STOPPED';
@@ -91,19 +91,90 @@ interface Strategy {
   };
 }
 
-export default function AutomatedTradingDashboard() {
+export default function AutomatedTradingDashboard({ headless = false }: { headless?: boolean }) {
   const { currentMode, virtualAccount, realAccount, resetVirtualAccount } = useAccountManager();
+  const { setRobotStatus, setActiveStrategyName, lastEvent } = useDashboard();
   const [engineStatus, setEngineStatus] = useState<EngineStatus | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
  
   const [autoRefresh, setAutoRefresh] = useState(true);
+
+  // Sync Robot Status with Global Context
+  useEffect(() => {
+    if (engineStatus) {
+      const statusMap: Record<string, RobotStatus> = {
+        'NOT_INITIALIZED': 'idle',
+        'RUNNING': 'running',
+        'STOPPED': 'idle',
+        'EMERGENCY_STOPPED': 'error'
+      };
+      setRobotStatus(statusMap[engineStatus.status] || 'idle');
+      
+      const activeStrategy = engineStatus.strategies?.find(s => s.enabled);
+      setActiveStrategyName(activeStrategy ? activeStrategy.name : undefined);
+    }
+  }, [engineStatus, setRobotStatus, setActiveStrategyName]);
+
+  // Handle navigation from other dashboards via context state (on mount)
+  useEffect(() => {
+    if (lastEvent && lastEvent.type === 'NAVIGATE_TO_TRADE' && lastEvent.payload) {
+      setActiveTab('config');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setSelectedSignal(lastEvent.payload as any);
+    }
+  }, [lastEvent]);
+
+  // Listen for external commands via context (if needed) or dispatch events
+  useEffect(() => {
+    if (engineStatus?.status === 'RUNNING') {
+       // Example: Dispatch status update periodically or on change
+       // This might be too spammy if done on every render, relying on engineStatus change is better
+    }
+  }, [engineStatus?.status]);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [selectedSignal, setSelectedSignal] = useState<{
+    symbol: string;
+    type: 'BULLISH' | 'BEARISH';
+    timeframe: string;
+    price: number;
+    score: number;
+    params?: {
+      minLiquidityStrength?: number;
+      minOrderBlockStrength?: number;
+      minFvgSize?: number;
+    };
+  } | null>(null);
+
+  const { subscribe } = useCrossDashboardEvents();
+
+  useEffect(() => {
+    const unsubscribe = subscribe('NAVIGATE_TO_TRADE', (event) => {
+        if (event.payload) {
+            setActiveTab('config');
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            setSelectedSignal(event.payload as any);
+        }
+    });
+    return unsubscribe;
+  }, [subscribe]);
+
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+
   const [preserveSettings, setPreserveSettings] = useState(true);
   const [isResetting, setIsResetting] = useState(false);
   const { balance, exchangeStatus, connect, disconnect, isLoading: isConnLoading } = useExchange();
   
+  useSocket(
+    () => {
+      fetchEngineStatus();
+    },
+    (evt) => {
+      toast.success('Ordem executada', {
+        description: `${evt.side.toUpperCase()} ${evt.amount} ${evt.symbol} a ${evt.price}`
+      });
+    }
+  );
 
   // Fetch engine status
   const fetchEngineStatus = useCallback(async () => {
@@ -381,10 +452,10 @@ export default function AutomatedTradingDashboard() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'RUNNING': return 'bg-green-500';
-      case 'STOPPED': return 'bg-yellow-500';
-      case 'EMERGENCY_STOPPED': return 'bg-red-500';
-      default: return 'bg-gray-500';
+      case 'RUNNING': return 'bg-success-500';
+      case 'STOPPED': return 'bg-warning-500';
+      case 'EMERGENCY_STOPPED': return 'bg-danger-500';
+      default: return 'bg-muted-foreground';
     }
   };
 
@@ -398,30 +469,39 @@ export default function AutomatedTradingDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <HeaderBar rightItems={
-          <div className="flex items-center space-x-4">
-            <Badge variant="outline" className={currentMode === 'VIRTUAL' ? 'border-green-200 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'border-blue-200 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'}>
-              {currentMode === 'VIRTUAL' ? '🎮 MODO DEMO' : '⚡ MODO REAL'}
-            </Badge>
-            {engineStatus && (
-              <div className="flex items-center space-x-2">
-                <div className={`w-3 h-3 rounded-full ${getStatusColor(engineStatus.status)} animate-pulse`}></div>
-                <span className="text-sm font-medium">{getStatusText(engineStatus.status)}</span>
+    <div className={`bg-background text-foreground ${headless ? '' : 'min-h-screen p-4 sm:p-6'}`}>
+      <div className={`${headless ? '' : 'max-w-7xl mx-auto'} space-y-6`}>
+        
+        {/* Dashboard Toolbar */}
+        {!headless && (
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-card p-4 rounded-lg shadow-sm border">
+              <div className="flex items-center">
+                <h2 className="text-xl font-semibold flex items-center">
+                  Auto Trading
+                </h2>
               </div>
-            )}
-            <Button onClick={exportCsv} className="bg-purple-600 hover:bg-purple-700 text-white">
-              <FileDown className="w-4 h-4 mr-2" />
-              Exportar CSV
-            </Button>
+              <div className="flex flex-wrap justify-center sm:justify-end items-center gap-3">
+                  <Badge variant="outline" className={currentMode === 'VIRTUAL' ? 'border-success-200 text-success-700 dark:bg-success-900/30 dark:text-success-300' : 'border-primary-200 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300'}>
+                    {currentMode === 'VIRTUAL' ? '🎮 MODO DEMO' : '⚡ MODO REAL'}
+                  </Badge>
+                  {engineStatus && (
+                    <div className="flex items-center space-x-2 bg-muted/50 px-3 py-1 rounded-full">
+                      <div className={`w-3 h-3 rounded-full ${getStatusColor(engineStatus.status)} animate-pulse`}></div>
+                      <span className="text-sm font-medium">{getStatusText(engineStatus.status)}</span>
+                    </div>
+                  )}
+                  <Button onClick={exportCsv} className="bg-primary-600 hover:bg-primary-700 text-white" size="sm">
+                    <FileDownIcon className="w-4 h-4 mr-2" />
+                    CSV
+                  </Button>
+              </div>
           </div>
-        } />
+        )}
 
         {/* Status Alert */}
         {!engineStatus && (
           <Alert>
-            <AlertTriangle className="h-4 w-4" />
+            <AlertTriangleIcon className="h-4 w-4" />
             <AlertDescription>
               Motor de trading não inicializado. Clique em "Inicializar Sistema" para começar.
             </AlertDescription>
@@ -430,13 +510,17 @@ export default function AutomatedTradingDashboard() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-2 lg:grid-cols-2 w-full">
-            <TabsTrigger value="dashboard" className="flex items-center space-x-2">
-              <BarChart3 className="w-4 h-4" />
+          <TabsList className="grid grid-cols-1 sm:grid-cols-3 w-full h-auto gap-2 sm:gap-0">
+            <TabsTrigger value="dashboard" className="flex items-center justify-center space-x-2 py-3">
+              <BarChart3Icon className="w-4 h-4" />
               <span>Dashboard</span>
             </TabsTrigger>
-            <TabsTrigger value="config" className="flex items-center space-x-2">
-              <Cog className="w-4 h-4" />
+            <TabsTrigger value="comparison" className="flex items-center justify-center space-x-2 py-3">
+              <SplitSquareHorizontalIcon className="w-4 h-4" />
+              <span>Comparação</span>
+            </TabsTrigger>
+            <TabsTrigger value="config" className="flex items-center justify-center space-x-2 py-3">
+              <CogIcon className="w-4 h-4" />
               <span>Configuração</span>
             </TabsTrigger>
           </TabsList>
@@ -444,27 +528,27 @@ export default function AutomatedTradingDashboard() {
           {/* Dashboard Tab */}
           <TabsContent value="dashboard" className="space-y-6">
             {/* Control Panel */}
-            <Card className="border-blue-200">
-              <CardHeader className="bg-blue-50">
-                <CardTitle className="flex items-center text-blue-900">
-                  <Settings className="w-5 h-5 mr-2" />
+            <Card className="border-primary-200">
+              <CardHeader className="bg-primary-50">
+                <CardTitle className="flex items-center text-primary-900">
+                  <SettingsIcon className="w-5 h-5 mr-2" />
                   Painel de Controle Automático
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-6">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   {/* Initialize Button */}
                   <div className="space-y-2">
                     <Button
                       onClick={initializeEngine}
                       disabled={isInitializing || (engineStatus && engineStatus.status !== 'NOT_INITIALIZED')}
-                      className="w-full bg-blue-600 hover:bg-blue-700"
+                      className="w-full bg-primary-600 hover:bg-primary-700"
                       size="lg"
                     >
                       {isInitializing ? (
-                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                        <RefreshIcon className="w-4 h-4 mr-2 animate-spin" />
                       ) : (
-                        <Settings className="w-4 h-4 mr-2" />
+                        <SettingsIcon className="w-4 h-4 mr-2" />
                       )}
                       Inicializar Sistema
                     </Button>
@@ -479,13 +563,13 @@ export default function AutomatedTradingDashboard() {
                       <Button
                         onClick={stopTrading}
                         disabled={isLoading}
-                        className="w-full bg-red-600 hover:bg-red-700"
+                        className="w-full bg-danger-600 hover:bg-danger-700"
                         size="lg"
                       >
                         {isLoading ? (
-                          <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                          <RefreshIcon className="w-4 h-4 mr-2 animate-spin" />
                         ) : (
-                          <Square className="w-4 h-4 mr-2" />
+                          <SquareIcon className="w-4 h-4 mr-2" />
                         )}
                         Parar Robô
                       </Button>
@@ -493,13 +577,13 @@ export default function AutomatedTradingDashboard() {
                       <Button
                         onClick={startTrading}
                         disabled={isLoading || !engineStatus || engineStatus.status === 'NOT_INITIALIZED'}
-                        className="w-full bg-green-600 hover:bg-green-700"
+                        className="w-full bg-success-600 hover:bg-success-700"
                         size="lg"
                       >
                         {isLoading ? (
-                          <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                          <RefreshIcon className="w-4 h-4 mr-2 animate-spin" />
                         ) : (
-                          <Play className="w-4 h-4 mr-2" />
+                          <PlayIcon className="w-4 h-4 mr-2" />
                         )}
                         Iniciar Robô
                       </Button>
@@ -519,9 +603,9 @@ export default function AutomatedTradingDashboard() {
                       variant="destructive"
                     >
                       {isLoading ? (
-                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                        <RefreshIcon className="w-4 h-4 mr-2 animate-spin" />
                       ) : (
-                        <AlertTriangle className="w-4 h-4 mr-2" />
+                        <AlertTriangleIcon className="w-4 h-4 mr-2" />
                       )}
                       Emergência
                     </Button>
@@ -544,9 +628,9 @@ export default function AutomatedTradingDashboard() {
                       size="lg"
                     >
                       {isResetting ? (
-                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                        <RefreshIcon className="w-4 h-4 mr-2 animate-spin" />
                       ) : (
-                        <RefreshCw className="w-4 h-4 mr-2" />
+                        <RefreshIcon className="w-4 h-4 mr-2" />
                       )}
                       Resetar Conta Virtual
                     </Button>
@@ -559,7 +643,7 @@ export default function AutomatedTradingDashboard() {
                 {/* Auto Refresh Toggle */}
                 <div className="flex items-center justify-between mt-4 pt-4 border-t">
                 <div className="flex items-center space-x-2">
-                    <Activity className="w-4 h-4 text-muted-foreground" />
+                    <ActivityIcon className="w-4 h-4 text-muted-foreground" />
                     <span className="text-sm text-muted-foreground">Atualização automática</span>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
@@ -569,7 +653,7 @@ export default function AutomatedTradingDashboard() {
                       onChange={(e) => setAutoRefresh(e.target.checked)}
                       className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                   </label>
                 </div>
             </CardContent>
@@ -630,8 +714,9 @@ export default function AutomatedTradingDashboard() {
               </div>
             </div>
           )}
-
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+            
+            {/* Key Metrics Grid - 2x2 on Tablet, 4x1 on Desktop */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <Card className="border-blue-200">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
@@ -639,7 +724,7 @@ export default function AutomatedTradingDashboard() {
                       <p className="text-sm font-medium text-muted-foreground">Equity</p>
                       <p className="text-2xl font-bold text-green-700">${equity.toLocaleString()}</p>
                     </div>
-                    <DollarSign className="w-8 h-8 text-green-500" />
+                    <DollarIcon className="w-8 h-8 text-green-500" />
                   </div>
                 </CardContent>
               </Card>
@@ -650,7 +735,7 @@ export default function AutomatedTradingDashboard() {
                       <p className="text-sm font-medium text-muted-foreground">P&L (Dia / Total)</p>
                       <p className="text-2xl font-bold text-purple-600">${dailyPnl.toFixed(2)} / ${totalPnl.toFixed(2)}</p>
                     </div>
-                    <TrendingUp className="w-8 h-8 text-purple-500" />
+                    <TrendingUpIcon className="w-8 h-8 text-purple-500" />
                   </div>
                 </CardContent>
               </Card>
@@ -661,7 +746,7 @@ export default function AutomatedTradingDashboard() {
                       <p className="text-sm font-medium text-muted-foreground">Exposição Líquida</p>
                       <p className={`text-2xl font-bold ${Math.abs(netExposure) > (equity * 0.8) ? 'text-red-700' : 'text-orange-600'}`}>${netExposure.toFixed(2)}</p>
                     </div>
-                    <Target className="w-8 h-8 text-orange-500" />
+                    <TargetIcon className="w-8 h-8 text-orange-500" />
                   </div>
                 </CardContent>
               </Card>
@@ -672,7 +757,7 @@ export default function AutomatedTradingDashboard() {
                       <p className="text-sm font-medium text-muted-foreground">Conexão</p>
                       <p className="text-2xl font-bold text-foreground">{exchangeStatus?.isConnected ? 'Conectado' : 'Desconectado'}</p>
                     </div>
-                    <Clock className="w-8 h-8 text-muted-foreground" />
+                    <ClockIcon className="w-8 h-8 text-muted-foreground" />
                   </div>
                   <div className="mt-3 flex space-x-3">
                     <Button
@@ -707,7 +792,7 @@ export default function AutomatedTradingDashboard() {
                           {engineStatus.engineStats?.activeStrategies || 0}
                         </p>
                       </div>
-                      <Target className="w-8 h-8 text-blue-500" />
+                      <TargetIcon className="w-8 h-8 text-blue-500" />
                     </div>
                   </CardContent>
                 </Card>
@@ -721,7 +806,7 @@ export default function AutomatedTradingDashboard() {
                           {engineStatus.engineStats?.activePositions || 0}
                         </p>
                       </div>
-                      <BarChart3 className="w-8 h-8 text-green-500" />
+                      <BarChart3Icon className="w-8 h-8 text-green-500" />
                     </div>
                   </CardContent>
                 </Card>
@@ -735,7 +820,7 @@ export default function AutomatedTradingDashboard() {
                           {engineStatus.engineStats?.totalTrades || 0}
                         </p>
                       </div>
-                      <TrendingUp className="w-8 h-8 text-purple-500" />
+                      <TrendingUpIcon className="w-8 h-8 text-purple-500" />
                     </div>
                   </CardContent>
                 </Card>
@@ -749,14 +834,14 @@ export default function AutomatedTradingDashboard() {
                           {((engineStatus.engineStats?.riskStats?.maxRiskPerTrade || 0) * 100).toFixed(1)}%
                         </p>
                       </div>
-                      <Shield className="w-8 h-8 text-orange-500" />
+                      <ShieldIcon className="w-8 h-8 text-orange-500" />
                     </div>
                   </CardContent>
                 </Card>
               </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between">
@@ -772,7 +857,7 @@ export default function AutomatedTradingDashboard() {
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between">
                     <span>Equity Curve</span>
-                    <LineChart className="w-4 h-4" />
+                    <LineChartIcon className="w-4 h-4" />
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -783,7 +868,7 @@ export default function AutomatedTradingDashboard() {
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between">
                     <span>Saldos</span>
-                    <PieChart className="w-4 h-4" />
+                    <PieChartIcon className="w-4 h-4" />
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -804,12 +889,12 @@ export default function AutomatedTradingDashboard() {
             <Card className="mt-4">
               <CardHeader>
                 <CardTitle className="flex items-center">
-                  <AlertTriangle className="w-5 h-5 mr-2 text-orange-500" />
+                  <AlertTriangleIcon className="w-5 h-5 mr-2 text-orange-500" />
                   Alertas de Risco
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="p-4 rounded-lg border bg-red-50 dark:bg-red-900/20">
                     <p className="text-sm text-red-700">Exposição acima do limite</p>
                     <Progress value={Math.min(100, Math.abs(netExposure) / (equity || 1) * 100)} />
@@ -831,7 +916,7 @@ export default function AutomatedTradingDashboard() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">
-                    <BarChart3 className="w-5 h-5 mr-2" />
+                    <BarChart3Icon className="w-5 h-5 mr-2" />
                     Posições Ativas
                     <Badge variant="secondary" className="ml-2">
                       {engineStatus.activePositions.length}
@@ -877,7 +962,7 @@ export default function AutomatedTradingDashboard() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">
-                    <Target className="w-5 h-5 mr-2" />
+                    <TargetIcon className="w-5 h-5 mr-2" />
                     Estratégias Configuradas
                   </CardTitle>
                 </CardHeader>
@@ -907,7 +992,7 @@ export default function AutomatedTradingDashboard() {
               <Card className="border-gray-200">
                 <CardHeader>
                   <CardTitle className="flex items-center">
-                    <Clock className="w-5 h-5 mr-2" />
+                    <ClockIcon className="w-5 h-5 mr-2" />
                     Status do Sistema
                   </CardTitle>
                 </CardHeader>
@@ -943,13 +1028,153 @@ export default function AutomatedTradingDashboard() {
             )}
           </TabsContent>
 
+          {/* Comparison Tab */}
+          <TabsContent value="comparison" className="h-[calc(100vh-12.5rem)] min-h-[37.5rem]">
+            <SplitView
+              left={
+                <Card className="h-full border-l-4 border-l-warning-500 flex flex-col">
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className="w-8 h-8 rounded-full bg-warning-100 flex items-center justify-center mr-3">
+                          <span className="font-bold text-warning-600">₿</span>
+                        </div>
+                        <span>BTC/USDT</span>
+                      </div>
+                      <Badge className="bg-warning-100 text-warning-900 hover:bg-warning-200">High Volatility</Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex-1 overflow-auto">
+                    <div className="space-y-6">
+                       <div className="p-4 bg-secondary rounded-lg">
+                          <div className="text-sm text-muted-foreground mb-1">Preço Atual</div>
+                          <div className="text-3xl font-bold">$42,350.00</div>
+                          <div className="text-sm text-success-600 flex items-center mt-1">
+                            <TrendingUpIcon className="w-3 h-3 mr-1" />
+                            +2.45% (24h)
+                          </div>
+                       </div>
+                       
+                       <div className="space-y-2">
+                         <h4 className="text-sm font-medium text-muted-foreground">Order Book Summary</h4>
+                         <div className="space-y-1">
+                           <div className="flex justify-between text-xs">
+                             <span className="text-danger-500">42,355.00</span>
+                             <span>0.5 BTC</span>
+                           </div>
+                           <div className="flex justify-between text-xs">
+                             <span className="text-danger-500">42,352.50</span>
+                             <span>1.2 BTC</span>
+                           </div>
+                           <div className="flex justify-between text-xs font-bold py-1 border-y border-border/50">
+                             <span className="text-foreground">42,350.00</span>
+                             <span>Spread: 2.50</span>
+                           </div>
+                           <div className="flex justify-between text-xs">
+                             <span className="text-success-500">42,348.00</span>
+                             <span>2.5 BTC</span>
+                           </div>
+                           <div className="flex justify-between text-xs">
+                             <span className="text-success-500">42,345.50</span>
+                             <span>0.8 BTC</span>
+                           </div>
+                         </div>
+                       </div>
+
+                       <div className="space-y-2">
+                         <h4 className="text-sm font-medium text-muted-foreground">Recent Trades</h4>
+                         <div className="space-y-1 text-xs">
+                           <div className="flex justify-between text-success-600">
+                             <span>14:30:25</span>
+                             <span>Buy 0.125 BTC</span>
+                           </div>
+                           <div className="flex justify-between text-danger-600">
+                             <span>14:30:22</span>
+                             <span>Sell 0.050 BTC</span>
+                           </div>
+                         </div>
+                       </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              }
+              right={
+                <Card className="h-full border-l-4 border-l-primary-500 flex flex-col">
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center mr-3">
+                          <span className="font-bold text-primary-600">Ξ</span>
+                        </div>
+                        <span>ETH/USDT</span>
+                      </div>
+                      <Badge variant="outline" className="border-primary-200 text-primary-700">Accumulation</Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex-1 overflow-auto">
+                    <div className="space-y-6">
+                       <div className="p-4 bg-secondary rounded-lg">
+                          <div className="text-sm text-muted-foreground mb-1">Preço Atual</div>
+                          <div className="text-3xl font-bold">$2,250.00</div>
+                          <div className="text-sm text-danger-600 flex items-center mt-1">
+                            <TrendingUpIcon className="w-3 h-3 mr-1 rotate-180" />
+                            -0.85% (24h)
+                          </div>
+                       </div>
+
+                       <div className="space-y-2">
+                         <h4 className="text-sm font-medium text-muted-foreground">Order Book Summary</h4>
+                         <div className="space-y-1">
+                           <div className="flex justify-between text-xs">
+                             <span className="text-danger-500">2,255.00</span>
+                             <span>10.5 ETH</span>
+                           </div>
+                           <div className="flex justify-between text-xs">
+                             <span className="text-danger-500">2,252.50</span>
+                             <span>8.2 ETH</span>
+                           </div>
+                           <div className="flex justify-between text-xs font-bold py-1 border-y border-border/50">
+                             <span className="text-foreground">2,250.00</span>
+                             <span>Spread: 0.50</span>
+                           </div>
+                           <div className="flex justify-between text-xs">
+                             <span className="text-success-500">2,248.00</span>
+                             <span>12.5 ETH</span>
+                           </div>
+                           <div className="flex justify-between text-xs">
+                             <span className="text-success-500">2,245.50</span>
+                             <span>5.8 ETH</span>
+                           </div>
+                         </div>
+                       </div>
+
+                       <div className="space-y-2">
+                         <h4 className="text-sm font-medium text-muted-foreground">Recent Trades</h4>
+                         <div className="space-y-1 text-xs">
+                           <div className="flex justify-between text-success-600">
+                             <span>14:30:28</span>
+                             <span>Buy 1.125 ETH</span>
+                           </div>
+                           <div className="flex justify-between text-success-600">
+                             <span>14:30:15</span>
+                             <span>Buy 2.050 ETH</span>
+                           </div>
+                         </div>
+                       </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              }
+              ratio="50-50"
+            />
+          </TabsContent>
+
           {/* Configuration Tab */}
           <TabsContent value="config">
-            <AutomatedTradingConfig />
+            <AutomatedTradingConfig initialSignal={selectedSignal} />
           </TabsContent>
         </Tabs>
       </div>
     </div>
   );
 }
-import { API_CONFIG } from '@/lib/config';

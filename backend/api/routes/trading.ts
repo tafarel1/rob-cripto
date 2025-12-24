@@ -1,17 +1,11 @@
 import { Router, type Request, type Response } from 'express';
 import { TradingEngine } from '../services/tradingEngine';
-import { ExchangeService } from '../services/exchangeService';
-import { SMCAnalyzer } from '../services/smcAnalyzer';
-import { RiskManager } from '../services/riskManager';
-import { ApiResponse, StrategyConfig, ExchangeConfig, RiskManagement, RiskStats, TradePosition, SMCAnalysis, TradingSignal, MarketData } from '../../../shared/types';
+import { ApiResponse, StrategyConfig, ExchangeConfig, RiskManagement, RiskStats, TradePosition } from '../../../shared/types';
 
 const router = Router();
 
 // Instâncias dos serviços (serão inicializadas com configurações)
 let tradingEngine: TradingEngine | null = null;
-let exchangeService: ExchangeService | null = null;
-let smcAnalyzer: SMCAnalyzer | null = null;
-let riskManager: RiskManager | null = null;
 
 /**
  * Inicializa serviços com configurações
@@ -35,9 +29,6 @@ function initializeServices() {
     positionSizingMethod: 'fixed'
   };
 
-  exchangeService = new ExchangeService(exchangeConfigs);
-  smcAnalyzer = new SMCAnalyzer();
-  riskManager = new RiskManager(riskConfig);
   tradingEngine = new TradingEngine(exchangeConfigs, riskConfig);
 }
 
@@ -51,7 +42,7 @@ router.get('/status', async (req: Request, res: Response) => {
       initializeServices();
     }
 
-    const stats = tradingEngine!.getStats();
+    const stats = await tradingEngine!.getStats();
     type StatusData = {
       status: 'running' | 'stopped';
       activeStrategies: number;

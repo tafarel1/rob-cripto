@@ -14,6 +14,14 @@ export class RiskManager {
     this.resetDailyLimits();
   }
 
+  public getConfiguration(): RiskManagement {
+    return this.config;
+  }
+
+  public getAccountBalance(): number {
+    return this.accountBalance;
+  }
+
   /**
    * Calcula o tamanho da posição baseado no risco
    */
@@ -269,6 +277,7 @@ export class RiskManager {
     shouldExit: boolean;
     exitAmount: number;
     exitPrice: number;
+    levelIndex?: number;
   } {
     const currentProfit = position.type === 'LONG'
       ? (currentPrice - position.entryPrice) / position.entryPrice
@@ -276,15 +285,19 @@ export class RiskManager {
 
     // Verificar se atingiu algum nível de take profit
     for (let i = 0; i < profitLevels.length; i++) {
+      // Skip if already triggered
+      if (position.triggeredTpLevels?.includes(i)) continue;
+
       if (currentProfit >= profitLevels[i]) {
         // Sair com 50% da posição no primeiro nível, 30% no segundo, 20% no terceiro
         const exitPercentages = [0.5, 0.3, 0.2];
-        const exitAmount = position.quantity * exitPercentages[i];
+        const exitAmount = position.quantity * (exitPercentages[i] || 0.2);
 
         return {
           shouldExit: true,
           exitAmount,
-          exitPrice: currentPrice
+          exitPrice: currentPrice,
+          levelIndex: i
         };
       }
     }

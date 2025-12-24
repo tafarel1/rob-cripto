@@ -11,10 +11,9 @@ const riskConfig: RiskManagement = {
 }
 
 describe('TradingEngine', () => {
-  it('getStats returns structure with running=false and risk stats', () => {
+  it('getStats returns structure with running=false and risk stats', async () => {
     const engine = new TradingEngine([], riskConfig, 10000)
-    const stats = engine.getStats()
-    expect(typeof stats.activeStrategies).toBe('number')
+    const stats = await engine.getStats()
     expect(typeof stats.activePositions).toBe('number')
     expect(stats.isRunning).toBe(false)
     expect(stats.riskStats.maxPositions).toBe(riskConfig.maxPositions)

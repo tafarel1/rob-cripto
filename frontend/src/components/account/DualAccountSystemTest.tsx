@@ -6,16 +6,15 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { 
-  Play, 
-  
-  RefreshCw, 
-  CheckCircle, 
-  XCircle,
-  AlertTriangle,
-  TrendingUp,
-  DollarSign
-} from 'lucide-react';
-import { useAccountManager } from './useAccountManager';
+  PlayIcon, 
+  RefreshIcon, 
+  CheckCircleIcon, 
+  XCircleIcon,
+  AlertTriangleIcon,
+  TrendingUpIcon,
+  DollarIcon
+} from '@/components/ui/icons';
+import { useAccountManager } from '@/components/account/useAccountManager';
 
 interface TestResult {
   test: string;
@@ -349,11 +348,11 @@ export default function DualAccountSystemTest() {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'pass':
-        return <CheckCircle className="w-4 h-4 text-green-700" />;
+        return <CheckCircleIcon className="w-4 h-4 text-green-700" />;
       case 'fail':
-        return <XCircle className="w-4 h-4 text-red-700" />;
+        return <XCircleIcon className="w-4 h-4 text-red-700" />;
       default:
-        return <AlertTriangle className="w-4 h-4 text-yellow-600" />;
+        return <AlertTriangleIcon className="w-4 h-4 text-yellow-600" />;
     }
   };
 
@@ -366,10 +365,10 @@ export default function DualAccountSystemTest() {
   return (
     <div className="w-full max-w-4xl mx-auto p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-foreground flex items-center">
-            <TrendingUp className="w-6 h-6 mr-3 text-blue-600" />
+            <TrendingUpIcon className="w-6 h-6 mr-3 text-blue-600" />
             Dual Account System Test
           </h2>
           <p className="text-muted-foreground mt-1">
@@ -377,7 +376,7 @@ export default function DualAccountSystemTest() {
           </p>
         </div>
         
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
           <Badge variant={getOverallStatus() === 'pass' ? 'default' : getOverallStatus() === 'fail' ? 'destructive' : 'secondary'} className={getOverallStatus() === 'pass' ? 'bg-green-100 text-green-800' : ''}>
             {getOverallStatus() === 'pass' ? 'All Tests Passed' : getOverallStatus() === 'fail' ? 'Tests Failed' : 'Ready to Test'}
           </Badge>
@@ -385,16 +384,16 @@ export default function DualAccountSystemTest() {
           <Button
             onClick={runAllTests}
             disabled={isTesting}
-            className="bg-blue-600 hover:bg-blue-700"
+            className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
           >
             {isTesting ? (
               <>
-                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                <RefreshIcon className="w-4 h-4 mr-2 animate-spin" />
                 Testing...
               </>
             ) : (
               <>
-                <Play className="w-4 h-4 mr-2" />
+                <PlayIcon className="w-4 h-4 mr-2" />
                 Run All Tests
               </>
             )}
@@ -406,7 +405,7 @@ export default function DualAccountSystemTest() {
       {isTesting && (
         <Alert>
           <AlertDescription className="flex items-center">
-            <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+            <RefreshIcon className="w-4 h-4 mr-2 animate-spin" />
             Running test {currentTestIndex + 1} of {tests.length}: {tests[currentTestIndex]?.name}
           </AlertDescription>
         </Alert>
@@ -416,7 +415,7 @@ export default function DualAccountSystemTest() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center">
-            <DollarSign className="w-5 h-5 mr-2 text-blue-600" />
+            <DollarIcon className="w-5 h-5 mr-2 text-blue-600" />
             Test Results
           </CardTitle>
         </CardHeader>

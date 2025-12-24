@@ -4,12 +4,23 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { AlertCircle, Gamepad2, Zap, DollarSign, Shield, TrendingUp, Settings } from 'lucide-react';
-import { useAccountManager } from './useAccountManager';
+import { 
+  InfoIcon, 
+  GamepadIcon, 
+  ZapIcon, 
+  DollarIcon, 
+  ShieldIcon, 
+  TrendingUpIcon, 
+  SettingsIcon 
+} from '@/components/ui/icons';
+import { useAccountManager } from '@/components/account/useAccountManager';
 import { toast } from 'sonner';
 
+export type AccountMode = 'VIRTUAL' | 'REAL';
+export type ModeChangeHandler = (_: AccountMode) => void;
+
 interface AccountModeSelectorProps {
-  onModeChange?: (mode: 'VIRTUAL' | 'REAL') => void;
+  onModeChange?: ModeChangeHandler;
 }
 
 export default function AccountModeSelector({ onModeChange }: AccountModeSelectorProps) {
@@ -86,12 +97,12 @@ export default function AccountModeSelector({ onModeChange }: AccountModeSelecto
         <div className="mt-4 inline-flex items-center px-4 py-2 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
           {currentMode === 'VIRTUAL' ? (
             <>
-              <Gamepad2 className="w-4 h-4 mr-2" />
+              <GamepadIcon className="w-4 h-4 mr-2" />
               <span className="font-medium">🎮 MODO VIRTUAL ATIVO</span>
             </>
           ) : (
             <>
-              <Zap className="w-4 h-4 mr-2" />
+              <ZapIcon className="w-4 h-4 mr-2" />
               <span className="font-medium">⚡ MODO REAL ATIVO</span>
             </>
           )}
@@ -99,7 +110,7 @@ export default function AccountModeSelector({ onModeChange }: AccountModeSelecto
       </div>
 
       {/* Mode Selection Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Virtual Account Card */}
         <Card className={`cursor-pointer transition-all duration-300 ${
           selectedMode === 'VIRTUAL' 
@@ -109,7 +120,7 @@ export default function AccountModeSelector({ onModeChange }: AccountModeSelecto
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center text-green-700">
-                <Gamepad2 className="w-6 h-6 mr-3 text-green-700" />
+                <GamepadIcon className="w-6 h-6 mr-3 text-green-700" />
                 <span className="text-xl font-bold">🎮 Conta Virtual</span>
               </CardTitle>
               <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">
@@ -122,7 +133,7 @@ export default function AccountModeSelector({ onModeChange }: AccountModeSelecto
               <div className="bg-green-50 p-4 rounded-lg">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-green-700">Saldo Inicial</span>
-                  <DollarSign className="w-4 h-4 text-green-700" />
+                  <DollarIcon className="w-4 h-4 text-green-700" />
                 </div>
                 <div className="text-2xl font-bold text-green-800">$10,000</div>
                 <div className="text-xs text-green-700 mt-1">Capital virtual para testes</div>
@@ -130,7 +141,7 @@ export default function AccountModeSelector({ onModeChange }: AccountModeSelecto
 
               <div className="space-y-3">
                 <h4 className="font-semibold text-foreground flex items-center">
-                  <TrendingUp className="w-4 h-4 mr-2 text-green-700" />
+                  <TrendingUpIcon className="w-4 h-4 mr-2 text-green-700" />
                   Benefícios:
                 </h4>
                 <ul className="space-y-2 text-sm text-muted-foreground">
@@ -185,7 +196,7 @@ export default function AccountModeSelector({ onModeChange }: AccountModeSelecto
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center text-blue-700">
-                <Zap className="w-6 h-6 mr-3 text-blue-600" />
+                <ZapIcon className="w-6 h-6 mr-3 text-blue-600" />
                 <span className="text-xl font-bold">⚡ Conta Real</span>
               </CardTitle>
               <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300">
@@ -198,7 +209,7 @@ export default function AccountModeSelector({ onModeChange }: AccountModeSelecto
               <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-blue-700">Capital Real</span>
-                  <DollarSign className="w-4 h-4 text-blue-600" />
+                  <DollarIcon className="w-4 h-4 text-blue-600" />
                 </div>
                 <div className="text-2xl font-bold text-blue-800">Seu Capital</div>
                 <div className="text-xs text-blue-600 mt-1">Depósito mínimo: $100</div>
@@ -206,7 +217,7 @@ export default function AccountModeSelector({ onModeChange }: AccountModeSelecto
 
               <div className="space-y-3">
                 <h4 className="font-semibold text-foreground flex items-center">
-                  <Shield className="w-4 h-4 mr-2 text-blue-700" />
+                  <ShieldIcon className="w-4 h-4 mr-2 text-blue-700" />
                   Características:
                 </h4>
                 <ul className="space-y-2 text-sm text-muted-foreground">
@@ -237,7 +248,7 @@ export default function AccountModeSelector({ onModeChange }: AccountModeSelecto
               {showApiConfig && (
                 <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
                   <div className="flex items-center mb-3">
-                    <Settings className="w-4 h-4 mr-2 text-yellow-600" />
+                    <SettingsIcon className="w-4 h-4 mr-2 text-yellow-600" />
                     <span className="font-medium text-yellow-800">Configuração de API</span>
                   </div>
                   
@@ -271,7 +282,7 @@ export default function AccountModeSelector({ onModeChange }: AccountModeSelecto
                     </div>
 
                     <div className="flex items-start p-3 bg-yellow-100 rounded-md">
-                      <AlertCircle className="w-4 h-4 mr-2 text-yellow-600 mt-0.5 flex-shrink-0" />
+                      <InfoIcon className="w-4 h-4 mr-2 text-yellow-600 mt-0.5 flex-shrink-0" />
                       <div className="text-xs text-yellow-800">
                         <strong>Atenção:</strong> Suas chaves API são armazenadas localmente e nunca são compartilhadas. 
                         Certifique-se de que suas chaves tenham apenas as permissões necessárias para trading.
@@ -304,7 +315,7 @@ export default function AccountModeSelector({ onModeChange }: AccountModeSelecto
       {/* Mode Comparison */}
       <div className="mt-8 p-6 bg-secondary rounded-lg">
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-          <TrendingUp className="w-5 h-5 mr-2 text-muted-foreground" />
+          <TrendingUpIcon className="w-5 h-5 mr-2 text-muted-foreground" />
           Comparação de Modos
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

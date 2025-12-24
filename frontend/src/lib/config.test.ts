@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { API_CONFIG } from './config'
+import { API_CONFIG } from '@/lib/config'
 
 describe('API_CONFIG', () => {
   it('exposes baseURL and trading endpoints', () => {
@@ -8,4 +8,3 @@ describe('API_CONFIG', () => {
     expect(typeof API_CONFIG.baseURL).toBe('string')
   })
 })
-

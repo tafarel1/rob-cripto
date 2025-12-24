@@ -1,13 +1,11 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import HeaderBar from '@/components/layout/HeaderBar';
-import { Bot, Shield, Zap } from 'lucide-react';
+import { BotIcon, ShieldIcon, ZapIcon } from '@/components/ui/icons';
 
 export default function Home() {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <HeaderBar />
-
+      
       {/* Hero Section */}
       <section className="container mx-auto px-6 py-20">
         <div className="text-center">
@@ -28,10 +26,10 @@ export default function Home() {
 
       {/* Features Section */}
       <section className="container mx-auto px-6 py-20">
-        <div className="grid md:grid-cols-3 gap-8">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
           <div className="text-center p-6 bg-card rounded-lg shadow-sm">
             <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Zap className="h-8 w-8 text-white" />
+              <ZapIcon className="h-8 w-8 text-white" />
             </div>
             <h3 className="text-xl font-semibold mb-3">Análise SMC Automatizada</h3>
             <p className="text-muted-foreground">
@@ -41,7 +39,7 @@ export default function Home() {
           
           <div className="text-center p-6 bg-card rounded-lg shadow-sm">
             <div className="w-16 h-16 bg-purple-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Shield className="h-8 w-8 text-white" />
+              <ShieldIcon className="h-8 w-8 text-white" />
             </div>
             <h3 className="text-xl font-semibold mb-3">Gestão de Risco Inteligente</h3>
             <p className="text-muted-foreground">
@@ -51,7 +49,7 @@ export default function Home() {
           
           <div className="text-center p-6 bg-card rounded-lg shadow-sm">
             <div className="w-16 h-16 bg-indigo-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Bot className="h-8 w-8 text-white" />
+              <BotIcon className="h-8 w-8 text-white" />
             </div>
             <h3 className="text-xl font-semibold mb-3">Execução 24/7</h3>
             <p className="text-muted-foreground">

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import React, { useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
-import { useTheme } from './useTheme';
+import { useTheme } from '@/hooks/useTheme';
 
 function delay(ms = 0) {
   return new Promise(resolve => setTimeout(resolve, ms));

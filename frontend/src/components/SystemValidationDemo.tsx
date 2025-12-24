@@ -3,15 +3,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
-  Play,
-  RefreshCw,
-  DollarSign,
-  Activity,
-  Zap,
-  Shield,
-  BarChart3,
-  Target
-} from 'lucide-react';
+  PlayIcon,
+  RefreshIcon,
+  DollarIcon,
+  ActivityIcon,
+  ZapIcon,
+  ShieldIcon,
+  BarChart3Icon,
+  TargetIcon
+} from '@/components/ui/icons';
 
 type TestType = 'connection' | 'analysis' | 'order' | 'risk' | 'notification';
 
@@ -47,12 +47,12 @@ export default function SystemValidationDemo() {
 
   const getTestTypeIcon = (testType: string) => {
     switch (testType) {
-      case 'connection': return <Zap className="h-4 w-4" />;
-      case 'analysis': return <BarChart3 className="h-4 w-4" />;
-      case 'order': return <DollarSign className="h-4 w-4" />;
-      case 'risk': return <Shield className="h-4 w-4" />;
-      case 'notification': return <Activity className="h-4 w-4" />;
-      default: return <Target className="h-4 w-4" />;
+      case 'connection': return <ZapIcon className="h-4 w-4" />;
+      case 'analysis': return <BarChart3Icon className="h-4 w-4" />;
+      case 'order': return <DollarIcon className="h-4 w-4" />;
+      case 'risk': return <ShieldIcon className="h-4 w-4" />;
+      case 'notification': return <ActivityIcon className="h-4 w-4" />;
+      default: return <TargetIcon className="h-4 w-4" />;
     }
   };
 
@@ -195,12 +195,12 @@ export default function SystemValidationDemo() {
           >
             {isRunningTests ? (
               <>
-                <RefreshCw className="h-5 w-5 mr-2 animate-spin" />
+                <RefreshIcon className="h-5 w-5 mr-2 animate-spin" />
                 Validando Sistema... {currentTest && `(${currentTest})`}
               </>
             ) : (
               <>
-                <Play className="h-5 w-5 mr-2" />
+                <PlayIcon className="h-5 w-5 mr-2" />
                 Iniciar Validação Completa
               </>
             )}
@@ -210,11 +210,11 @@ export default function SystemValidationDemo() {
         {/* Cards de Status do Sistema */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
           {[
-            { key: 'exchangeConnected', name: 'Exchange', icon: <Zap className="h-6 w-6" />, color: 'blue' },
-            { key: 'analysisWorking', name: 'Análise SMC', icon: <BarChart3 className="h-6 w-6" />, color: 'purple' },
-            { key: 'orderSystemReady', name: 'Sistema de Ordens', icon: <DollarSign className="h-6 w-6" />, color: 'green' },
-            { key: 'riskManagementActive', name: 'Gestão de Risco', icon: <Shield className="h-6 w-6" />, color: 'orange' },
-            { key: 'notificationsEnabled', name: 'Notificações', icon: <Activity className="h-6 w-6" />, color: 'cyan' }
+            { key: 'exchangeConnected', name: 'Exchange', icon: <ZapIcon className="h-6 w-6" />, color: 'blue' },
+            { key: 'analysisWorking', name: 'Análise SMC', icon: <BarChart3Icon className="h-6 w-6" />, color: 'purple' },
+            { key: 'orderSystemReady', name: 'Sistema de Ordens', icon: <DollarIcon className="h-6 w-6" />, color: 'green' },
+            { key: 'riskManagementActive', name: 'Gestão de Risco', icon: <ShieldIcon className="h-6 w-6" />, color: 'orange' },
+            { key: 'notificationsEnabled', name: 'Notificações', icon: <ActivityIcon className="h-6 w-6" />, color: 'cyan' }
           ].map((system) => (
             <Card key={system.key} className="text-center">
               <CardContent className="pt-6">
@@ -237,7 +237,7 @@ export default function SystemValidationDemo() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center">
-                <Target className="h-5 w-5 mr-2" />
+                <TargetIcon className="h-5 w-5 mr-2" />
                 Resultados dos Testes
                 <Badge variant="outline" className="ml-2">
                   {testResults.length} testes executados
@@ -290,7 +290,7 @@ export default function SystemValidationDemo() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center">
-                <Shield className="h-5 w-5 mr-2 text-green-500" />
+                <ShieldIcon className="h-5 w-5 mr-2 text-green-500" />
                 Ambiente Seguro
               </CardTitle>
             </CardHeader>
@@ -307,7 +307,7 @@ export default function SystemValidationDemo() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center">
-                <BarChart3 className="h-5 w-5 mr-2 text-blue-500" />
+                <BarChart3Icon className="h-5 w-5 mr-2 text-blue-500" />
                 Dados Reais
               </CardTitle>
             </CardHeader>

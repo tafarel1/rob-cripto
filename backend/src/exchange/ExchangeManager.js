@@ -7,6 +7,7 @@ class ExchangeManager {
   constructor() {
     this.exchange = null;
     this.isConnected = false;
+    this.isSimulation = false;
     this.connectionStatus = 'disconnected';
     this.lastError = null;
     this.balance = null;
@@ -50,21 +51,56 @@ class ExchangeManager {
       
       console.log(`✅ Exchange conectada: ${mode === 'testnet' ? 'Binance Testnet' : 'Binance Produção'}`);
       this.isConnected = true;
+      this.isSimulation = false;
       this.connectionStatus = 'connected';
       
       return { success: true, message: 'Exchange conectada com sucesso' };
       
     } catch (error) {
       console.error('❌ Erro ao conectar exchange:', error.message);
+      
+      const mode = process.env.EXCHANGE_MODE || 'testnet';
+      if (mode === 'testnet') {
+        console.log('⚠️ Falha na conexão real, ativando modo SIMULAÇÃO para desenvolvimento');
+        this.isConnected = true;
+        this.isSimulation = true;
+        this.connectionStatus = 'simulated';
+        this.lastError = error.message;
+        
+        return { 
+          success: true, 
+          message: 'Modo simulação ativado (conexão real falhou)'
+        };
+      }
+
       this.lastError = error.message;
       this.connectionStatus = 'error';
       
       return { 
         success: false, 
         error: error.message,
-        message: 'Erro ao conectar exchange - usando modo simulação'
+        message: 'Erro ao conectar exchange'
       };
     }
+  }
+
+  getConnectionStatus() {
+    return {
+      isConnected: this.isConnected,
+      isSimulation: this.isSimulation,
+      status: this.connectionStatus,
+      exchange: this.exchange ? this.exchange.name : 'Unknown',
+      lastError: this.lastError,
+      timestamp: Date.now()
+    };
+  }
+
+  async disconnect() {
+    this.isConnected = false;
+    this.isSimulation = false;
+    this.connectionStatus = 'disconnected';
+    this.exchange = null;
+    return true;
   }
 
   async testConnection() {
@@ -82,16 +118,21 @@ class ExchangeManager {
     }
   }
 
+  async getPositions() {
+    // Retornar posições simuladas ou vazias se não conectado
+    if (!this.isConnected) return { success: false, data: [] };
+    
+    // TODO: Implementar busca real de posições se necessário
+    return { success: true, data: this.positions || [] };
+  }
+
   async getBalance() {
     try {
       if (!this.isConnected) {
         throw new Error('Exchange não conectada');
       }
 
-      // Para testnet sem chaves válidas, retornar dados mockados
-      const isTestMode = !this.exchange.apiKey || this.exchange.apiKey === 'your_testnet_api_key' || this.exchange.apiKey === 'testnet_api_key_here';
-      
-      if (isTestMode) {
+      if (this.isSimulation) {
         return {
           success: true,
           data: {
@@ -116,9 +157,10 @@ class ExchangeManager {
         }
       };
     } catch (error) {
-      // Se falhar mesmo com chaves, retornar dados mockados para demonstração
-      if (this.exchange && (!this.exchange.apiKey || this.exchange.apiKey === 'your_testnet_api_key' || this.exchange.apiKey === 'testnet_api_key_here')) {
-        return {
+      // Se falhar mesmo com chaves, e estivermos em modo testnet, fallback para mock
+      const mode = process.env.EXCHANGE_MODE || 'testnet';
+      if (mode === 'testnet' && this.exchange) {
+         return {
           success: true,
           data: {
             total: { USDT: 10000, BTC: 0.5, ETH: 5 },
@@ -163,12 +205,77 @@ class ExchangeManager {
         throw new Error('Exchange não conectada');
       }
 
-      // Para testnet sem chaves válidas, retornar dados mockados
-      const isTestMode = !this.exchange.apiKey || this.exchange.apiKey === 'your_testnet_api_key' || this.exchange.apiKey === 'testnet_api_key_here';
-      
-      if (isTestMode) {
+      if (this.isSimulation) {
         // Gerar dados mockados de candlesticks
-        const basePrice = 45000;
+        const mockPrices = {
+          'BTC/USDT': 45000,
+          'ETH/USDT': 3000,
+          'SOL/USDT': 150,
+          'XRP/USDT': 0.60,
+          'BNB/USDT': 400,
+          'ADA/USDT': 0.45,
+          'DOGE/USDT': 0.12,
+          'MATIC/USDT': 0.70
+        };
+        const basePrice = mockPrices[symbol] || 100;
+        
+        const marketData = [];
+        const now = Date.now();
+        const timeframeMs = this.getTimeframeMs(timeframe);
+        
+        // Align timestamps to grid for 1d/1w to avoid chart rendering issues
+        let currentTimestamp = Date.now();
+        if (timeframe === '1d' || timeframe === '1w' || timeframe === '3d') {
+            // Round down to nearest day (UTC midnight)
+            currentTimestamp = Math.floor(currentTimestamp / 86400000) * 86400000;
+        }
+        
+        for (let i = limit - 1; i >= 0; i--) {
+          const timestamp = currentTimestamp - (i * timeframeMs);
+          const variation = (Math.random() - 0.5) * 0.02; // ±1% variação
+          const open = basePrice * (1 + variation);
+          const close = open * (1 + (Math.random() - 0.5) * 0.01);
+          const high = Math.max(open, close) * (1 + Math.random() * 0.005);
+          const low = Math.min(open, close) * (1 - Math.random() * 0.005);
+          const volume = 100 + Math.random() * 500;
+          
+          marketData.push({
+            timestamp,
+            open: parseFloat(open.toFixed(2)),
+            high: parseFloat(high.toFixed(2)),
+            low: parseFloat(low.toFixed(2)),
+            close: parseFloat(close.toFixed(2)),
+            volume: parseFloat(volume.toFixed(6))
+          });
+        }
+        
+        return {
+          success: true,
+          data: marketData,
+          symbol,
+          timeframe,
+          count: marketData.length
+        };
+      }
+
+      const ohlcv = await this.exchange.fetchOHLCV(symbol, timeframe, undefined, limit);
+      
+      // Fallback para simulação se não houver dados suficientes no Testnet (comum para 1d/1w)
+      if (ohlcv.length < 50 && (process.env.EXCHANGE_MODE === 'testnet' || this.exchange.urls['api']['public'].includes('testnet'))) {
+        console.warn(`⚠️ Dados insuficientes no Testnet para ${symbol} ${timeframe} (${ohlcv.length} candles). Gerando dados simulados.`);
+        // Fallback to simulation logic
+        const mockPrices = {
+          'BTC/USDT': 45000,
+          'ETH/USDT': 3000,
+          'SOL/USDT': 150,
+          'XRP/USDT': 0.60,
+          'BNB/USDT': 400,
+          'ADA/USDT': 0.45,
+          'DOGE/USDT': 0.12,
+          'MATIC/USDT': 0.70
+        };
+        const basePrice = mockPrices[symbol] || 100;
+        
         const marketData = [];
         const now = Date.now();
         const timeframeMs = this.getTimeframeMs(timeframe);
@@ -195,12 +302,12 @@ class ExchangeManager {
         return {
           success: true,
           data: marketData,
-          timestamp: Date.now()
+          symbol,
+          timeframe,
+          count: marketData.length
         };
       }
 
-      const ohlcv = await this.exchange.fetchOHLCV(symbol, timeframe, undefined, limit);
-      
       // Converter para formato mais amigável
       const marketData = ohlcv.map(candle => ({
         timestamp: candle[0],
@@ -232,11 +339,19 @@ class ExchangeManager {
         throw new Error('Exchange não conectada');
       }
 
-      // Para testnet sem chaves válidas, retornar dados mockados
-      const isTestMode = !this.exchange.apiKey || this.exchange.apiKey === 'your_testnet_api_key';
-      
-      if (isTestMode) {
-        const basePrice = symbol.includes('BTC') ? 45000 : symbol.includes('ETH') ? 3000 : 100;
+      if (this.isSimulation) {
+        const mockPrices = {
+          'BTC/USDT': 45000,
+          'ETH/USDT': 3000,
+          'SOL/USDT': 150,
+          'XRP/USDT': 0.60,
+          'BNB/USDT': 400,
+          'ADA/USDT': 0.45,
+          'DOGE/USDT': 0.12,
+          'MATIC/USDT': 0.70
+        };
+        const basePrice = mockPrices[symbol] || 100;
+        
         const variation = (Math.random() - 0.5) * 0.02; // ±1% variação
         const last = basePrice * (1 + variation);
         const bid = last * 0.999;
@@ -244,18 +359,18 @@ class ExchangeManager {
         const high = last * 1.02;
         const low = last * 0.98;
         const volume = 100 + Math.random() * 1000;
-        const change = (Math.random() - 0.5) * 200;
+        const change = (Math.random() - 0.5) * (basePrice * 0.05);
         const percentage = (change / basePrice) * 100;
         
         return {
           success: true,
           data: {
             symbol: symbol,
-            last: parseFloat(last.toFixed(2)),
-            bid: parseFloat(bid.toFixed(2)),
-            ask: parseFloat(ask.toFixed(2)),
-            high: parseFloat(high.toFixed(2)),
-            low: parseFloat(low.toFixed(2)),
+            last: parseFloat(last.toFixed(4)),
+            bid: parseFloat(bid.toFixed(4)),
+            ask: parseFloat(ask.toFixed(4)),
+            high: parseFloat(high.toFixed(4)),
+            low: parseFloat(low.toFixed(4)),
             volume: parseFloat(volume.toFixed(6)),
             change: parseFloat(change.toFixed(2)),
             percentage: parseFloat(percentage.toFixed(2)),
@@ -283,7 +398,8 @@ class ExchangeManager {
       };
     } catch (error) {
       // Se falhar mesmo com chaves, retornar dados mockados para demonstração
-      if (this.exchange && (!this.exchange.apiKey || this.exchange.apiKey === 'your_testnet_api_key')) {
+      const mode = process.env.EXCHANGE_MODE || 'testnet';
+      if (mode === 'testnet') {
         const basePrice = symbol.includes('BTC') ? 45000 : symbol.includes('ETH') ? 3000 : 100;
         const variation = (Math.random() - 0.5) * 0.02;
         const last = basePrice * (1 + variation);
@@ -320,13 +436,7 @@ class ExchangeManager {
 
       console.log(`📈 Criando ordem: ${side} ${type} ${amount} ${symbol} @ ${price || 'market'}`);
       
-      // Para testnet sem chaves válidas, retornar ordem mockada
-      const isTestMode = !this.exchange.apiKey || 
-                        this.exchange.apiKey === 'your_testnet_api_key' || 
-                        this.exchange.apiKey === 'your_binance_testnet_key' ||
-                        this.exchange.apiKey.includes('your_');
-      
-      if (isTestMode) {
+      if (this.isSimulation) {
         const orderId = 'mock-order-' + Date.now();
         const currentPrice = price || (symbol.includes('BTC') ? 45000 : symbol.includes('ETH') ? 3000 : 100);
         const orderPrice = type === 'market' ? currentPrice : price;
@@ -385,13 +495,8 @@ class ExchangeManager {
       };
     } catch (error) {
       // Se falhar mesmo com chaves, retornar ordem mockada para demonstração
-      if (this.exchange && (!this.exchange.apiKey || 
-          this.exchange.apiKey === 'your_testnet_api_key' || 
-          this.exchange.apiKey === 'your_binance_testnet_key' ||
-          this.exchange.apiKey === 'testnet_api_key_here' ||
-          this.exchange.apiKey.includes('your_') ||
-          this.exchange.apiKey.includes('testnet') ||
-          this.exchange.apiKey.includes('example'))) {
+      const mode = process.env.EXCHANGE_MODE || 'testnet';
+      if (mode === 'testnet') {
         const orderId = 'mock-order-' + Date.now();
         const currentPrice = price || (symbol.includes('BTC') ? 45000 : symbol.includes('ETH') ? 3000 : 100);
         const orderPrice = type === 'market' ? currentPrice : price;
@@ -453,6 +558,14 @@ class ExchangeManager {
         throw new Error('Exchange não conectada');
       }
 
+      if (this.isSimulation) {
+        return {
+          success: true,
+          data: this.orders.filter(o => o.status === 'open'),
+          count: this.orders.filter(o => o.status === 'open').length
+        };
+      }
+
       const orders = await this.exchange.fetchOpenOrders(symbol);
       
       return {
@@ -474,10 +587,7 @@ class ExchangeManager {
         throw new Error('Exchange não conectada');
       }
 
-      // Para testnet sem chaves válidas, retornar cancelamento mockado
-      const isTestMode = !this.exchange.apiKey || this.exchange.apiKey === 'your_testnet_api_key';
-      
-      if (isTestMode) {
+      if (this.isSimulation) {
         // Encontrar a ordem nos registros mockados
         const orderIndex = this.orders.findIndex(order => order.id === orderId);
         
@@ -497,29 +607,18 @@ class ExchangeManager {
               info: {
                 orderId: orderId,
                 status: 'CANCELED',
-                transactTime: Date.now()
               }
             },
-            message: 'Ordem mockada cancelada com sucesso'
-          };
-        } else {
-          // Se não encontrar a ordem, criar um cancelamento mockado mesmo assim
-          return {
-            success: true,
-            data: {
-              id: orderId,
-              symbol: symbol || 'BTC/USDT',
-              status: 'canceled',
-              timestamp: Date.now(),
-              info: {
-                orderId: orderId,
-                status: 'CANCELED',
-                transactTime: Date.now()
-              }
-            },
-            message: 'Ordem mockada cancelada com sucesso'
+            message: 'Ordem cancelada com sucesso (simulação)'
           };
         }
+      }
+
+      // Para testnet sem chaves válidas, retornar cancelamento mockado
+      // Fallback logic
+      const mode = process.env.EXCHANGE_MODE || 'testnet';
+      if (mode === 'testnet' && !this.exchange.apiKey) {
+         // ... simplified mock logic if needed, but isSimulation covers it
       }
 
       const result = await this.exchange.cancelOrder(orderId, symbol);
@@ -530,59 +629,12 @@ class ExchangeManager {
         message: 'Ordem cancelada com sucesso'
       };
     } catch (error) {
-      // Se falhar mesmo com chaves, retornar cancelamento mockado para demonstração
-      if (this.exchange && (!this.exchange.apiKey || this.exchange.apiKey === 'your_testnet_api_key')) {
-        return {
-          success: true,
-          data: {
-            id: orderId,
-            symbol: symbol || 'BTC/USDT',
-            status: 'canceled',
-            timestamp: Date.now(),
-            info: {
-              orderId: orderId,
-              status: 'CANCELED',
-              transactTime: Date.now()
-            }
-          },
-          message: 'Ordem mockada cancelada com sucesso'
-        };
-      }
-      
       return {
         success: false,
-        error: error.message
+        error: error.message,
+        message: 'Erro ao cancelar ordem'
       };
     }
-  }
-
-  getConnectionStatus() {
-    return {
-      isConnected: this.isConnected,
-      status: this.connectionStatus,
-      lastError: this.lastError,
-      exchange: this.exchange ? this.exchange.name : null,
-      mode: process.env.EXCHANGE_MODE || 'testnet'
-    };
-  }
-
-  getOrders() {
-    return {
-      success: true,
-      data: this.orders,
-      count: this.orders.length
-    };
-  }
-
-  async disconnect() {
-    this.exchange = null;
-    this.isConnected = false;
-    this.connectionStatus = 'disconnected';
-    this.lastError = null;
-    this.balance = null;
-    this.positions = [];
-    this.orders = [];
-    return { success: true };
   }
 }
 

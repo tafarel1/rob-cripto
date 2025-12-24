@@ -5,8 +5,8 @@
   "description": "Backend API para Robô de Trading SMC - Otimizado para Railway Free Tier",
   "main": "production-server.js",
   "scripts": {
-    "start": "node production-server.js",
-    "dev": "node production-server.js",
+    "start": "npx tsx production-server.js",
+    "dev": "npx tsx production-server.js",
     "build": "echo 'Build otimizado para Railway'",
     "test": "vitest --run",
     "coverage": "vitest --run --coverage"
@@ -14,6 +14,7 @@
   "dependencies": {
     "axios": "^1.13.2",
     "ccxt": "^4.5.20",
+    "compression": "^1.7.5",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^4.21.1",

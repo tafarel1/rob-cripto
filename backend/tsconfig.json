@@ -17,6 +17,7 @@
   },
   "include": [
     "api/**/*.ts",
+    "shared/**/*.ts",
     "types/**/*.d.ts"
   ]
 }

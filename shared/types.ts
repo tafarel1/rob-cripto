@@ -6,6 +6,7 @@ export interface MarketData {
   low: number;
   close: number;
   volume: number;
+  symbol?: string; // Optional since it might be inferred from context
 }
 
 // SMC Analysis Types
@@ -40,6 +41,26 @@ export interface MarketStructure {
   direction: 'bullish' | 'bearish';
 }
 
+export interface WashTradingActivity {
+  type: 'volume_spike' | 'high_vol_doji';
+  timestamp: number;
+  details: string;
+  severity: 'high' | 'medium' | 'low';
+}
+
+export interface PremiumDiscountZone {
+  high: number;
+  low: number;
+  equilibrium: number;
+  status: 'PREMIUM' | 'DISCOUNT';
+}
+
+export interface SessionLiquidity {
+  asia?: { high: number; low: number; label: string };
+  london?: { high: number; low: number; label: string };
+  newYork?: { high: number; low: number; label: string };
+}
+
 export interface SMCAnalysis {
   liquidityZones: LiquidityZone[];
   orderBlocks: OrderBlock[];
@@ -47,6 +68,9 @@ export interface SMCAnalysis {
   marketStructures: MarketStructure[];
   buySideLiquidity: number[];
   sellSideLiquidity: number[];
+  washTrading?: WashTradingActivity[];
+  premiumDiscount?: PremiumDiscountZone | null;
+  sessionLiquidity?: SessionLiquidity | null;
 }
 
 // Trading Types
@@ -70,10 +94,11 @@ export interface TradePosition {
   stopLoss: number;
   takeProfit: number[];
   status: 'OPEN' | 'CLOSED' | 'CANCELLED' | 'PARTIALLY_CLOSED';
-  openTime: number;
+  openTime?: number; // Made optional
+  entryTime?: number; // Added alias
   closeTime?: number;
   realizedPnl?: number;
-  fees: number;
+  fees?: number; // Made optional
 }
 
 export interface RiskManagement {
@@ -82,6 +107,15 @@ export interface RiskManagement {
   maxPositions: number;
   riskRewardRatio: number;
   positionSizingMethod: 'fixed' | 'percentage' | 'kelly';
+}
+
+export interface HedgingConfig {
+  enabled: boolean;
+  hedgeExchange: string;
+  hedgeSymbol: string;
+  maxDeltaExposure: number; // USD value
+  targetDelta: number; // 0 for neutral
+  checkInterval: number; // ms
 }
 
 export interface RiskStats {
@@ -142,9 +176,9 @@ export interface StrategyConfig {
 
 // Backtesting Types
 export interface BacktestResult {
-  strategyId: string;
-  startDate: string;
-  endDate: string;
+  strategyId?: string;
+  startDate?: string;
+  endDate?: string;
   totalTrades: number;
   winningTrades: number;
   losingTrades: number;
@@ -157,6 +191,9 @@ export interface BacktestResult {
   averageLoss: number;
   largestWin: number;
   largestLoss: number;
+  expectancy: number; // Added
+  sortinoRatio: number; // Added
+  cagr: number; // Added
   trades: TradePosition[];
 }
 
@@ -174,4 +211,36 @@ export interface MarketDataRequest {
   limit: number;
   startTime?: number;
   endTime?: number;
+}
+
+// Alternative Data Types
+export interface SentimentData {
+  source: 'twitter' | 'news' | 'reddit';
+  score: number; // -1 to 1 (Negative to Positive)
+  volume: number; // Number of mentions
+  timestamp: number;
+}
+
+export interface OnChainData {
+  metric: 'mvrv' | 'nupl' | 'active_addresses' | 'exchange_inflow';
+  value: number;
+  timestamp: number;
+}
+
+export interface DerivativesData {
+  symbol: string;
+  fundingRate: number;
+  openInterest: number; // in USD
+  longShortRatio: number;
+  liquidations: {
+    longs: number;
+    shorts: number;
+  };
+  timestamp: number;
+}
+
+export interface AlternativeMetrics {
+  sentiment: SentimentData[];
+  onChain: OnChainData[];
+  derivatives: DerivativesData;
 }

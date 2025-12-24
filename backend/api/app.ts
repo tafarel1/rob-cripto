@@ -16,6 +16,7 @@ import authRoutes from './routes/auth.js'
 import tradingRoutes from './routes/trading.js'
 import accountRoutes from './routes/account.js'
 import automatedTradingRoutes from './routes/automatedTrading.js'
+import analysisRoutes from './routes/analysis.js'
 
 // for esm mode
 const __filename = fileURLToPath(import.meta.url)
@@ -37,6 +38,7 @@ app.use('/api/auth', authRoutes)
 app.use('/api/trading', tradingRoutes)
 app.use('/api/account', accountRoutes)
 app.use('/api/automated-trading', automatedTradingRoutes)
+app.use('/api/analysis', analysisRoutes)
 
 /**
  * health

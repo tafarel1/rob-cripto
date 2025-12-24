@@ -1,11 +1,14 @@
-import express from 'express';
-const router = express.Router();
-import { SimpleTradingEngine } from '../services/simpleTradingEngine.js';
+import express, { Request, Response } from 'express';
+import { TradingEngine } from '../services/tradingEngine.js';
+// @ts-ignore
 import { asyncHandler } from '../../middleware/errorHandler.js';
+import { ExchangeConfig, RiskManagement, StrategyConfig } from '../../../shared/types.js';
+
+const router = express.Router();
 
 // Global trading engine instance
-let tradingEngine = null;
-let engineConfig = null;
+let tradingEngine: TradingEngine | null = null;
+let engineConfig: any = null;
 
 export const resetEngineState = () => {
   tradingEngine = null;
@@ -14,7 +17,7 @@ export const resetEngineState = () => {
 
 // Initialize trading engine
 router.post('/initialize',
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const { 
       exchangeConfigs = [], 
       riskConfig = {
@@ -32,7 +35,14 @@ router.post('/initialize',
 
     try {
       // Create new trading engine instance
-      tradingEngine = new SimpleTradingEngine(exchangeConfigs, riskConfig, initialBalance);
+      // Note: TradingEngine creates its own SMCAnalyzer internally now
+      tradingEngine = new TradingEngine(
+        exchangeConfigs as ExchangeConfig[], 
+        riskConfig as RiskManagement, 
+        initialBalance,
+        process.env.DATABASE_URL
+      );
+      
       engineConfig = { exchangeConfigs, riskConfig, initialBalance, strategies };
 
       // Initialize the engine
@@ -40,7 +50,7 @@ router.post('/initialize',
 
       // Add default strategies if none provided
       if (strategies.length === 0) {
-        const defaultStrategy = {
+        const defaultStrategy: StrategyConfig = {
           name: 'SMC_Auto_Strategy_1',
           symbol: 'BTC/USDT',
           timeframe: '15m',
@@ -58,9 +68,11 @@ router.post('/initialize',
         };
         tradingEngine.addStrategy(defaultStrategy);
       } else {
-        strategies.forEach(strategy => tradingEngine.addStrategy(strategy));
+        strategies.forEach((strategy: StrategyConfig) => tradingEngine!.addStrategy(strategy));
       }
 
+      const io = req.app.get('io');
+      io && io.emit('engine:status', { status: 'NOT_INITIALIZED', timestamp: Date.now() });
       res.json({
         success: true,
         message: 'Motor de trading automático inicializado com sucesso',
@@ -70,7 +82,7 @@ router.post('/initialize',
           config: engineConfig
         }
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao inicializar motor de trading:', error);
       throw new Error(`Falha ao inicializar motor de trading: ${error.message}`);
     }
@@ -78,7 +90,7 @@ router.post('/initialize',
 
 // Start automated trading
 router.post('/start',
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     if (!tradingEngine) {
       return res.status(400).json({
         success: false,
@@ -88,6 +100,8 @@ router.post('/start',
 
     try {
       tradingEngine.start();
+      const io = req.app.get('io');
+      io && io.emit('engine:status', { status: 'RUNNING', timestamp: Date.now() });
       
       res.json({
         success: true,
@@ -98,7 +112,7 @@ router.post('/start',
           timestamp: new Date().toISOString()
         }
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao iniciar trading automático:', error);
       throw new Error(`Falha ao iniciar trading automático: ${error.message}`);
     }
@@ -106,7 +120,7 @@ router.post('/start',
 
 // Stop automated trading
 router.post('/stop',
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     if (!tradingEngine) {
       return res.status(400).json({
         success: false,
@@ -116,6 +130,8 @@ router.post('/stop',
 
     try {
       tradingEngine.stop();
+      const io = req.app.get('io');
+      io && io.emit('engine:status', { status: 'STOPPED', timestamp: Date.now() });
       
       res.json({
         success: true,
@@ -126,7 +142,7 @@ router.post('/stop',
           timestamp: new Date().toISOString()
         }
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao parar trading automático:', error);
       throw new Error(`Falha ao parar trading automático: ${error.message}`);
     }
@@ -134,7 +150,7 @@ router.post('/stop',
 
 // Get engine status
 router.get('/status',
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     if (!tradingEngine) {
       return res.json({
         success: true,
@@ -146,6 +162,12 @@ router.get('/status',
     }
 
     const stats = tradingEngine.getStats();
+    let workerStats = {};
+    try {
+        workerStats = await tradingEngine.getWorkerStats();
+    } catch (err) {
+        console.warn('Failed to fetch worker stats:', err);
+    }
     const activePositions = tradingEngine.getActivePositions();
     const strategies = tradingEngine.getStrategies();
 
@@ -154,6 +176,7 @@ router.get('/status',
       data: {
         status: stats.isRunning ? 'RUNNING' : 'STOPPED',
         engineStats: stats,
+        workerStats: workerStats,
         activePositions: activePositions,
         strategies: strategies,
         timestamp: new Date().toISOString(),
@@ -165,7 +188,7 @@ router.get('/status',
 
 // Add new strategy
 router.post('/strategies',
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     if (!tradingEngine) {
       return res.status(400).json({
         success: false,
@@ -194,7 +217,7 @@ router.post('/strategies',
           engineStats: tradingEngine.getStats()
         }
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao adicionar estratégia:', error);
       throw new Error(`Falha ao adicionar estratégia: ${error.message}`);
     }
@@ -202,7 +225,7 @@ router.post('/strategies',
 
 // Remove strategy
 router.delete('/strategies/:name',
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     if (!tradingEngine) {
       return res.status(400).json({
         success: false,
@@ -223,7 +246,7 @@ router.delete('/strategies/:name',
           engineStats: tradingEngine.getStats()
         }
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao remover estratégia:', error);
       throw new Error(`Falha ao remover estratégia: ${error.message}`);
     }
@@ -231,7 +254,7 @@ router.delete('/strategies/:name',
 
 // Update strategy
 router.put('/strategies/:name',
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     if (!tradingEngine) {
       return res.status(400).json({
         success: false,
@@ -269,7 +292,7 @@ router.put('/strategies/:name',
           engineStats: tradingEngine.getStats()
         }
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao atualizar estratégia:', error);
       throw new Error(`Falha ao atualizar estratégia: ${error.message}`);
     }
@@ -277,7 +300,7 @@ router.put('/strategies/:name',
 
 // Get active positions
 router.get('/positions',
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     if (!tradingEngine) {
       return res.status(400).json({
         success: false,
@@ -299,7 +322,7 @@ router.get('/positions',
 
 // Emergency stop (close all positions)
 router.post('/emergency-stop',
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     if (!tradingEngine) {
       return res.status(400).json({
         success: false,
@@ -310,6 +333,8 @@ router.post('/emergency-stop',
     try {
       // Stop the engine first
       tradingEngine.stop();
+      const io = req.app.get('io');
+      io && io.emit('engine:status', { status: 'EMERGENCY_STOPPED', timestamp: Date.now() });
       
       // Get all active positions
       const positions = tradingEngine.getActivePositions();
@@ -327,7 +352,7 @@ router.post('/emergency-stop',
           timestamp: new Date().toISOString()
         }
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao ativar emergência:', error);
       throw new Error(`Falha ao ativar emergência: ${error.message}`);
     }
@@ -335,7 +360,7 @@ router.post('/emergency-stop',
 
 // Reset trading engine
 router.post('/reset',
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     if (!tradingEngine) {
       return res.status(400).json({
         success: false,
@@ -346,6 +371,9 @@ router.post('/reset',
     try {
       const { preserveSettings = true, initialBalance } = req.body || {};
       const stats = tradingEngine.reset({ preserveSettings, initialBalance });
+      const io = req.app.get('io');
+      const resetStatus = stats.isRunning ? 'RUNNING' : 'STOPPED';
+      io && io.emit('engine:status', { status: resetStatus, timestamp: Date.now() });
       res.json({
         success: true,
         message: 'Motor de trading resetado com sucesso',
@@ -358,7 +386,7 @@ router.post('/reset',
           config: engineConfig
         }
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao resetar motor de trading:', error);
       throw new Error(`Falha ao resetar motor de trading: ${error.message}`);
     }

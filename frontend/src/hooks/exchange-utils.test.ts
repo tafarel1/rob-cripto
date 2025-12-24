@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { normalizeExchangeStatus, normalizeBalance } from './exchange-utils'
+import { normalizeExchangeStatus, normalizeBalance } from '@/hooks/exchange-utils'
 
 describe('exchange utils', () => {
   it('normalizeExchangeStatus maps connected status', () => {
@@ -29,4 +29,3 @@ describe('exchange utils', () => {
     expect(res.error).toBe('x')
   })
 })
-

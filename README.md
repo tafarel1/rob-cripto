@@ -66,23 +66,9 @@ node setup.js
 ```
 
 4. **Configure suas chaves API**
-Edite o arquivo `.env` com suas credenciais:
-```env
-# Binance
-BINANCE_API_KEY=sua_api_key_aqui
-BINANCE_SECRET=sua_secret_aqui
-
-# Bybit
-BYBIT_API_KEY=sua_api_key_aqui
-BYBIT_SECRET=sua_secret_aqui
-
-# Supabase
-SUPABASE_URL=sua_supabase_url_aqui
-SUPABASE_ANON_KEY=sua_anon_key_aqui
-
-# Notificações
-TELEGRAM_BOT_TOKEN=seu_telegram_bot_token
-TELEGRAM_CHAT_ID=seu_chat_id
+Copie o arquivo `.env.example` para `.env` e preencha com suas credenciais:
+```bash
+cp .env.example .env
 ```
 
 5. **Inicie o servidor**
@@ -197,11 +183,13 @@ robo-cripto/
 │   ├── routes/           # Rotas da API
 │   ├── config/           # Configurações
 │   └── app.ts            # Aplicação Express
-├── src/                   # Frontend React
-│   ├── components/       # Componentes React
-│   ├── pages/           # Páginas
-│   ├── hooks/           # Hooks customizados
-│   └── lib/             # Utilitários
+├── frontend/              # Frontend React
+│   ├── src/
+│   │   ├── components/   # Componentes React
+│   │   ├── pages/       # Páginas
+│   │   ├── hooks/       # Hooks customizados
+│   │   └── lib/         # Utilitários
+│   └── ...
 ├── shared/               # Tipos compartilhados
 └── supabase/            # Configurações do banco
 ```
@@ -282,28 +270,16 @@ npm run build
 - [Guia de Configuração](docs/setup.md)
 
 ### Comunidade
-- [Discord](discord-link)
-- [Telegram Group](telegram-link)
-- [GitHub Issues](issues-link)
+Participe de nossa comunidade para suporte e discussões sobre estratégias.
 
-### Contato
-- Email: suporte@robo-cripto.com
-- Telegram: @suporte_robo_cripto
+## 🤝 Contribuição
 
-## 📄 Licença
+Contribuições são bem-vindas! Por favor, leia o arquivo [CONTRIBUTING.md](CONTRIBUTING.md) para detalhes sobre nosso código de conduta e o processo para enviar pull requests.
 
-Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE](LICENSE) para detalhes.
+## 📄 Histórico de Mudanças
 
-## 🤝 Contribuindo
+Veja o [CHANGELOG.md](CHANGELOG.md) para uma lista detalhada de mudanças em cada versão.
 
-Contribuições são bem-vindas! Por favor, leia o [CONTRIBUTING.md](CONTRIBUTING.md) para saber como contribuir.
+## 📝 Licença
 
-## 🙏 Agradecimentos
-
-- [CCXT](https://github.com/ccxt/ccxt) - Biblioteca de integração com exchanges
-- [TradingView](https://www.tradingview.com) - Inspiração para análises
-- [Smart Money Concepts](https://www.youtube.com/c/InnerCircleTrader) - Comunidade ICT
-
----
-
-**⚠️ Disclaimer**: Este software é fornecido "como está", sem garantias de qualquer tipo. O trading de criptomoedas envolve riscos significativos e você pode perder todo o seu capital investido. Use por sua própria conta e risco.
+Este projeto está licenciado sob a licença MIT - veja o arquivo [LICENSE](LICENSE) para detalhes.

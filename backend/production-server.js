@@ -1,6 +1,7 @@
 import express from 'express';
 import path from 'path';
 import cors from 'cors';
+import compression from 'compression';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { createServer } from 'http';
@@ -34,14 +35,218 @@ const allowedOrigins = [
 const io = new SocketIOServer(server, {
   cors: {
     origin: allowedOrigins,
-    methods: ['GET', 'POST']
+    methods: ['GET', 'POST'],
+    credentials: true
   }
 });
+// Expor instancia do Socket.IO para rotas
+app.set('io', io);
+
+// Broadcast periódico de saldo e posições da exchange
+let exchangeBroadcastInterval = null;
+async function startExchangeBroadcast() {
+  if (exchangeBroadcastInterval) return;
+  exchangeBroadcastInterval = setInterval(async () => {
+    try {
+      if (!exchangeInitialized) return;
+      const bal = await exchangeManager.getBalance();
+      io.emit('exchange:balance', { ...bal, timestamp: Date.now() });
+      const positions = await exchangeManager.getPositions();
+      io.emit('exchange:positions', { ...positions, timestamp: Date.now() });
+    } catch (err) {
+      io.emit('exchange:balance', { success: false, error: String(err), data: {}, timestamp: Date.now() });
+    }
+  }, 8000);
+}
+
+function stopExchangeBroadcast() {
+  if (exchangeBroadcastInterval) {
+    clearInterval(exchangeBroadcastInterval);
+    exchangeBroadcastInterval = null;
+  }
+}
 
 // Instanciar gerenciadores
 const exchangeManager = new ExchangeManager();
 const smcAnalyzer = new SMCAnalyzer(exchangeManager);
 let exchangeInitialized = false;
+
+// ===== WEBSOCKET & SMC BROADCAST SYSTEM =====
+const smcSubscriptions = new Map(); // Key: "symbol:timeframe", Value: Set<socketId>
+const washTradingCache = new Map(); // Key: "symbol", Value: { severity: 'high'|'medium'|'low', activities: [] }
+const alertHistory = []; // Armazenamento em memória de alertas
+const lastProcessedSignalTime = new Map(); // Key: "symbol:timeframe", Value: timestamp
+let smcBroadcastInterval = null;
+
+function addAlert(alert) {
+  const newAlert = {
+    id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+    timestamp: Date.now(),
+    read: false,
+    ...alert
+  };
+  
+  alertHistory.unshift(newAlert);
+  
+  // Manter apenas últimos 100 alertas
+  if (alertHistory.length > 100) {
+    alertHistory.pop();
+  }
+  
+  io.emit('alert:new', newAlert);
+  return newAlert;
+}
+
+function startSMCBroadcast() {
+  if (smcBroadcastInterval) return;
+  
+  console.log('🚀 Iniciando broadcast SMC (1s heartbeat)');
+  smcBroadcastInterval = setInterval(async () => {
+    try {
+      if (smcSubscriptions.size === 0) return;
+      
+      const activeKeys = Array.from(smcSubscriptions.keys());
+      
+      for (const key of activeKeys) {
+        const subscribers = smcSubscriptions.get(key);
+        if (!subscribers || subscribers.size === 0) {
+          smcSubscriptions.delete(key);
+          continue;
+        }
+        
+        const [symbol, timeframe] = key.split(':');
+        
+        // Executar análise (Limitado a 100 candles para performance no heartbeat)
+        const result = await smcAnalyzer.analyzeMarket(symbol, timeframe, 100);
+        
+        if (result.success) {
+           // Atualizar Cache de Wash Trading
+           if (result.data.washTrading && result.data.washTrading.length > 0) {
+             const highSeverity = result.data.washTrading.some(w => w.severity === 'high');
+             const mediumSeverity = result.data.washTrading.some(w => w.severity === 'medium');
+             
+             washTradingCache.set(symbol, {
+               severity: highSeverity ? 'high' : mediumSeverity ? 'medium' : 'low',
+               activities: result.data.washTrading,
+               timestamp: Date.now()
+             });
+           } else {
+             washTradingCache.delete(symbol);
+           }
+
+           // Broadcast de dados SMC
+           io.to(key).emit('smc:update', {
+             symbol,
+             timeframe,
+             data: result.data,
+             timestamp: Date.now()
+           });
+           
+           // Processamento de Alertas
+           if (result.data.signals && result.data.signals.length > 0) {
+             const lastTime = lastProcessedSignalTime.get(key) || 0;
+             const newSignals = result.data.signals.filter(s => s.timestamp > lastTime);
+             
+             if (newSignals.length > 0) {
+               newSignals.forEach(signal => {
+                 addAlert({
+                   type: signal.confidence > 0.8 ? 'strategic' : 'standard',
+                   title: `Sinal SMC: ${signal.type} ${symbol}`,
+                   message: `${signal.reason} (Confiança: ${(signal.confidence * 100).toFixed(0)}%)`,
+                   pair: symbol,
+                   data: signal
+                 });
+               });
+               
+               // Atualizar timestamp do último sinal processado
+               // Pegamos o maior timestamp entre os novos sinais
+               const maxTimestamp = Math.max(...newSignals.map(s => s.timestamp));
+               lastProcessedSignalTime.set(key, maxTimestamp);
+             }
+           }
+        }
+      }
+    } catch (err) {
+      console.error('❌ Erro no broadcast SMC:', err);
+    }
+  }, 1000); // 1 segundo heartbeat para dados críticos
+}
+
+io.on('connection', (socket) => {
+  console.log(`🔌 Cliente conectado: ${socket.id}`);
+  
+  socket.on('subscribe:smc', ({ symbol, timeframe }) => {
+    const key = `${symbol}:${timeframe}`;
+    
+    // Adicionar ao room do socket.io
+    socket.join(key);
+    
+    // Adicionar ao mapa de controle
+    if (!smcSubscriptions.has(key)) {
+      smcSubscriptions.set(key, new Set());
+    }
+    smcSubscriptions.get(key).add(socket.id);
+    
+    console.log(`📡 Cliente ${socket.id} assinou SMC: ${key}`);
+    
+    // Enviar dados iniciais imediatamente
+    smcAnalyzer.analyzeMarket(symbol, timeframe, 100).then(result => {
+      if (result.success) {
+        socket.emit('smc:update', {
+          symbol,
+          timeframe,
+          data: result.data,
+          timestamp: Date.now()
+        });
+      }
+    });
+    
+    // Garantir que o broadcast está rodando
+    startSMCBroadcast();
+  });
+  
+  socket.on('unsubscribe:smc', ({ symbol, timeframe }) => {
+    const key = `${symbol}:${timeframe}`;
+    socket.leave(key);
+    
+    if (smcSubscriptions.has(key)) {
+      smcSubscriptions.get(key).delete(socket.id);
+      if (smcSubscriptions.get(key).size === 0) {
+        smcSubscriptions.delete(key);
+      }
+    }
+    console.log(`🔕 Cliente ${socket.id} cancelou assinatura SMC: ${key}`);
+  });
+  
+  socket.on('disconnect', () => {
+    console.log(`🔌 Cliente desconectado: ${socket.id}`);
+    for (const [key, subscribers] of smcSubscriptions.entries()) {
+      if (subscribers.has(socket.id)) {
+        subscribers.delete(socket.id);
+        if (subscribers.size === 0) {
+          smcSubscriptions.delete(key);
+        }
+      }
+    }
+  });
+});
+
+const shouldAutoConnect = process.env.EXCHANGE_MODE === 'testnet' || !process.env.EXCHANGE_MODE;
+if (shouldAutoConnect) {
+  console.log('🔄 Auto-iniciando conexão com exchange (Testnet/Dev)...');
+  exchangeManager.initialize()
+    .then(result => {
+      if (result.success) {
+        exchangeInitialized = true;
+        tradingState.exchangeConnected = true;
+        console.log('✅ Auto-conexão estabelecida com sucesso');
+        startExchangeBroadcast();
+      } else {
+        console.warn('⚠️ Auto-conexão falhou:', result.error);
+      }
+    })
+    .catch(err => console.error('❌ Erro fatal na auto-conexão:', err));
+}
 
 // Estado global do trading
 const tradingState = {
@@ -94,6 +299,9 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
+// Compression middleware para reduzir latência e uso de banda
+app.use(compression());
+
 // Middleware de logging
 app.use(requestLogger);
 
@@ -108,7 +316,10 @@ app.use(handleCorsErrors);
 // Servir arquivos estáticos do build do frontend
 const SERVE_FRONTEND = process.env.SERVE_FRONTEND === 'true';
 if (SERVE_FRONTEND) {
-  app.use(express.static(path.join(__dirname, '../frontend/dist')));
+  app.use(express.static(path.join(__dirname, '../frontend/dist'), {
+    maxAge: '1h',
+    immutable: true
+  }));
 }
 
 // Automated Trading Routes
@@ -139,12 +350,16 @@ app.get('/api/trading/status', (req, res) => {
   });
 });
 
-app.get('/api/trading/positions', (req, res) => {
-  res.json({
-    success: true,
-    data: [],
-    timestamp: Date.now()
-  });
+app.get('/api/trading/positions', async (req, res) => {
+  try {
+    const result = await exchangeManager.getPositions();
+    res.json({
+      ...result,
+      timestamp: Date.now()
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message, timestamp: Date.now() });
+  }
 });
 
 app.post('/api/trading/start', async (req, res) => {
@@ -266,6 +481,68 @@ app.get('/api/market/analysis/:symbol', (req, res) => {
   });
 });
 
+app.get('/api/analysis/smc', async (req, res) => {
+  const { symbol = 'BTC/USDT', timeframe = '1h' } = req.query;
+  
+  try {
+    const result = await smcAnalyzer.analyzeMarket(symbol, timeframe, 200);
+    
+    if (result.success) {
+      res.json({
+        success: true,
+        data: result.data,
+        timestamp: Date.now()
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: result.error || 'Falha na análise SMC',
+        timestamp: Date.now()
+      });
+    }
+  } catch (err) {
+    console.error('❌ Erro na rota SMC:', err);
+    res.status(500).json({
+      success: false,
+      error: err.message,
+      timestamp: Date.now()
+    });
+  }
+});
+
+// ===== ALERT ROUTES =====
+app.get('/api/alerts', (req, res) => {
+  const { limit = 50, type } = req.query;
+  
+  let filteredAlerts = alertHistory;
+  if (type && type !== 'all') {
+    filteredAlerts = filteredAlerts.filter(a => a.type === type);
+  }
+  
+  res.json({
+    success: true,
+    data: filteredAlerts.slice(0, Number(limit)),
+    timestamp: Date.now()
+  });
+});
+
+app.post('/api/alerts/:id/read', (req, res) => {
+  const { id } = req.params;
+  const alert = alertHistory.find(a => a.id === id);
+  
+  if (alert) {
+    alert.read = true;
+    res.json({ success: true, data: alert });
+  } else {
+    res.status(404).json({ success: false, error: 'Alert not found' });
+  }
+});
+
+app.post('/api/alerts/mark-all-read', (req, res) => {
+  alertHistory.forEach(a => a.read = true);
+  res.json({ success: true, message: 'All alerts marked as read' });
+});
+
 // Health check com monitoramento
 app.get('/api/health', (req, res) => {
   const uptime = process.uptime();
@@ -317,6 +594,11 @@ app.get('/api/usage', (req, res) => {
 
 // ===== ACCOUNT ROUTES =====
 app.use('/api/account', accountRoutes);
+app.use('/api/automated-trading', automatedTradingRoutes);
+
+// Configurar dependências globais para rotas
+app.set('smcAnalyzer', smcAnalyzer);
+app.set('washTradingCache', washTradingCache);
 
 // ===== NOVOS ENDPOINTS DE EXCHANGE E ANÁLISE SMC =====
 
@@ -336,6 +618,10 @@ app.post('/api/exchange/connect', async (req, res) => {
       tradingState.exchangeConnected = false;
     }
     
+    const io = req.app.get('io');
+    io && io.emit('exchange:status', exchangeManager.getConnectionStatus());
+    if (exchangeInitialized) startExchangeBroadcast();
+
     res.json({
       success: true,
       data: exchangeManager.getConnectionStatus(),
@@ -354,6 +640,106 @@ app.post('/api/exchange/connect', async (req, res) => {
   }
 });
 
+app.post('/api/backtest/run', async (req, res) => {
+  try {
+    const { symbol = 'BTC/USDT', timeframe = '1h', initialCapital = 10000 } = req.body;
+    
+    // 1. Fetch historical data (limit 500 for performance)
+    const limit = 500;
+    const marketData = await exchangeManager.getMarketData(symbol, timeframe, limit);
+    
+    if (!marketData.success) {
+      throw new Error(marketData.error);
+    }
+    
+    const candles = marketData.data;
+    let balance = Number(initialCapital);
+    let trades = [];
+    let position = null;
+    let maxDrawdown = 0;
+    let peakBalance = balance;
+    
+    // 2. Simple Simulation Loop
+    // We need at least 50 candles to start analysis
+    for (let i = 50; i < candles.length; i++) {
+      const currentCandle = candles[i];
+      const slice = candles.slice(0, i + 1);
+      
+      // Use simplified analysis
+      const orderBlocks = smcAnalyzer.analyzeOrderBlocks(slice);
+      
+      // Strategy Logic (Simplified: Buy at Bullish OB)
+      if (!position) {
+        // Buy Logic
+        const bullishOB = orderBlocks.find(ob => ob.type === 'bullish' && Math.abs(ob.price - currentCandle.close) / currentCandle.close < 0.005);
+        if (bullishOB) {
+          const riskAmount = balance * 0.02; // 2% risk
+          const stopLoss = bullishOB.range[0];
+          const dist = currentCandle.close - stopLoss;
+          if (dist > 0) {
+             const quantity = riskAmount / dist;
+             const takeProfit = currentCandle.close + (dist * 2); // 1:2 RR
+             
+             position = {
+               type: 'BUY',
+               entryPrice: currentCandle.close,
+               quantity: quantity,
+               stopLoss: stopLoss,
+               takeProfit: takeProfit,
+               startTime: currentCandle.timestamp
+             };
+          }
+        }
+      } else {
+        // Manage Position
+        if (position.type === 'BUY') {
+          if (currentCandle.low <= position.stopLoss) {
+            // Stop Loss Hit
+            const pnl = (position.stopLoss - position.entryPrice) * position.quantity;
+            balance += pnl;
+            trades.push({ ...position, exitPrice: position.stopLoss, exitTime: currentCandle.timestamp, pnl, result: 'LOSS' });
+            position = null;
+          } else if (currentCandle.high >= position.takeProfit) {
+            // Take Profit Hit
+            const pnl = (position.takeProfit - position.entryPrice) * position.quantity;
+            balance += pnl;
+            trades.push({ ...position, exitPrice: position.takeProfit, exitTime: currentCandle.timestamp, pnl, result: 'WIN' });
+            position = null;
+          }
+        }
+      }
+      
+      // Track Drawdown
+      if (balance > peakBalance) peakBalance = balance;
+      const currentDD = (peakBalance - balance) / peakBalance * 100;
+      if (currentDD > maxDrawdown) maxDrawdown = currentDD;
+    }
+    
+    const totalTrades = trades.length;
+    const wins = trades.filter(t => t.result === 'WIN').length;
+    const winRate = totalTrades > 0 ? (wins / totalTrades * 100).toFixed(1) : 0;
+    const pnl = balance - initialCapital;
+    const pnlPercent = (pnl / initialCapital * 100).toFixed(2);
+    const profitFactor = trades.reduce((acc, t) => t.pnl > 0 ? acc + t.pnl : acc, 0) / Math.abs(trades.reduce((acc, t) => t.pnl < 0 ? acc + t.pnl : acc, 0) || 1);
+    
+    res.json({
+      success: true,
+      data: {
+        totalTrades,
+        winRate,
+        pnl: pnl.toFixed(2),
+        pnlPercent,
+        maxDrawdown: maxDrawdown.toFixed(2),
+        profitFactor: profitFactor.toFixed(2),
+        trades: trades.slice(-10)
+      }
+    });
+    
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Status da conexão com exchange
 app.get('/api/exchange/status', (req, res) => {
   res.json({
@@ -368,6 +754,9 @@ app.post('/api/exchange/disconnect', async (req, res) => {
     await exchangeManager.disconnect();
     exchangeInitialized = false;
     tradingState.exchangeConnected = false;
+    const io = req.app.get('io');
+    io && io.emit('exchange:status', exchangeManager.getConnectionStatus());
+    stopExchangeBroadcast();
     res.json({
       success: true,
       data: exchangeManager.getConnectionStatus(),
@@ -511,6 +900,43 @@ app.get('/api/analysis/smc', async (req, res) => {
   }
 });
 
+// Relatório de Integridade de Mercado (Wash Trading)
+app.get('/api/reports/integrity', (req, res) => {
+  try {
+    const report = [];
+    washTradingCache.forEach((value, key) => {
+      report.push({
+        symbol: key,
+        status: value.severity,
+        anomalies: value.activities.length,
+        details: value.activities,
+        lastUpdate: new Date(value.timestamp).toISOString()
+      });
+    });
+
+    const stats = {
+      totalMonitored: washTradingCache.size,
+      highSeverity: report.filter(r => r.status === 'high').length,
+      mediumSeverity: report.filter(r => r.status === 'medium').length,
+      healthy: 0 // In this cache we only store those with activities, so unknown
+    };
+
+    res.json({
+      success: true,
+      data: {
+        timestamp: new Date().toISOString(),
+        stats,
+        report
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // Teste de ordem (modo testnet)
 app.post('/api/exchange/test-order', async (req, res) => {
   try {
@@ -520,6 +946,21 @@ app.post('/api/exchange/test-order', async (req, res) => {
       return res.json({
         success: false,
         error: 'Exchange não conectada. Use POST /api/exchange/connect primeiro.',
+        timestamp: Date.now()
+      });
+    }
+
+    // VERIFICAÇÃO DE WASH TRADING / INTEGRIDADE
+    const washStatus = washTradingCache.get(symbol);
+    if (washStatus && washStatus.severity === 'high') {
+      const activities = washStatus.activities.filter(a => a.severity === 'high').map(a => a.details).join('; ');
+      console.warn(`⛔ Trade Bloqueado: Manipulação de Mercado Detectada em ${symbol} (${activities})`);
+      
+      return res.json({
+        success: false,
+        error: `TRADE BLOCKED: High severity market manipulation detected. (${activities})`,
+        blocked: true,
+        reason: 'market_integrity_risk',
         timestamp: Date.now()
       });
     }
@@ -839,8 +1280,28 @@ if (SERVE_FRONTEND) {
     res.sendFile(path.join(__dirname, '../frontend/dist', 'index.html'));
   });
 } else {
-  app.get('*', (_req, res) => {
-    res.status(404).json({ success: false, error: 'Not Found' });
+  // Rota raiz amigável quando o frontend não está sendo servido
+  app.get('/', (_req, res) => {
+    res.json({
+      success: true,
+      message: 'Robo Cripto SMC API - Backend Operacional 🚀',
+      endpoints: {
+        health: '/api/health',
+        status: '/api/trading/status',
+        docs: 'Consulte a documentação para lista completa de endpoints'
+      },
+      timestamp: Date.now()
+    });
+  });
+
+  // Catch-all para rotas não encontradas (404)
+  app.all('*', (_req, res) => {
+    res.status(404).json({ 
+      success: false, 
+      error: 'Endpoint não encontrado',
+      path: _req.originalUrl,
+      hint: 'Verifique se a URL está correta ou acesse / para ver endpoints disponíveis'
+    });
   });
 }
 
@@ -850,8 +1311,7 @@ app.use(handleApiErrors);
 // Iniciar servidor
 resetEngineState();
 
-io.on('connection', (_socket) => {
-});
+// Remove duplicate empty io.on connection handler that was here
 
 setInterval(async () => {
   try {
@@ -860,7 +1320,15 @@ setInterval(async () => {
       for (const symbol of symbols) {
         const ticker = await exchangeManager.getTicker(symbol);
         if (ticker && ticker.success) {
-          io.emit('price:update', { symbol, price: ticker.data.last, timestamp: Date.now() });
+          io.emit('price:update', { 
+            symbol, 
+            price: ticker.data.last,
+            change24h: ticker.data.percentage,
+            high24h: ticker.data.high,
+            low24h: ticker.data.low,
+            volume24h: ticker.data.volume,
+            timestamp: Date.now() 
+          });
         }
       }
     }
@@ -872,6 +1340,14 @@ server.listen(PORT, () => {
   console.log(`🚀 Robo Cripto SMC rodando na porta ${PORT}`);
   console.log(`📊 Acesse: http://localhost:${PORT}`);
   console.log(`🔧 API disponível em: http://localhost:${PORT}/api/health`);
+  
+  // Iniciar broadcast de dados SMC em tempo real
+  startSMCBroadcast();
 });
+
+// Ajustes de timeouts e keepalive
+server.keepAliveTimeout = 60000;
+server.headersTimeout = 65000;
+server.setTimeout(30000);
 
 export default app;
