@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { SMCAnalyzer } from './smcAnalyzer'
-import type { SMCAnalysis, MarketData, MarketStructure } from '../../../shared/types'
+import { SMCAnalyzer } from './smcAnalyzer.js'
+import type { SMCAnalysis, MarketData, MarketStructurePoint } from '../../../shared/types.js'
 
 function makeCandle(t: number, o: number, h: number, l: number, c: number, v: number): MarketData {
   return { timestamp: t, open: o, high: h, low: l, close: c, volume: v }
@@ -10,6 +10,7 @@ describe('SMCAnalyzer', () => {
   it('generateSignals produces BUY when low liquidity and bullish OB near price', () => {
     const analyzer = new SMCAnalyzer({ minLiquidityStrength: 0.5, minOrderBlockStrength: 0.5 })
     const analysis: SMCAnalysis = {
+      marketStructure: 'NEUTRAL',
       liquidityZones: [{ type: 'low', price: 100, strength: 0.8, timestamp: Date.now() }],
       orderBlocks: [{ type: 'bullish', price: 100.1, startTime: Date.now() - 1000, endTime: Date.now(), strength: 0.8, mitigated: false }],
       fairValueGaps: [],
@@ -24,6 +25,7 @@ describe('SMCAnalyzer', () => {
   it('generateSignals produces SELL when high liquidity and bearish OB near price', () => {
     const analyzer = new SMCAnalyzer({ minLiquidityStrength: 0.5, minOrderBlockStrength: 0.5 })
     const analysis: SMCAnalysis = {
+      marketStructure: 'NEUTRAL',
       liquidityZones: [{ type: 'high', price: 100, strength: 0.8, timestamp: Date.now() }],
       orderBlocks: [{ type: 'bearish', price: 99.9, startTime: Date.now() - 1000, endTime: Date.now(), strength: 0.8, mitigated: false }],
       fairValueGaps: [],
@@ -73,7 +75,7 @@ describe('SMCAnalyzer', () => {
       makeCandle(22, 106, 110, 102, 106, 1000),
     ]
     const res = analyzer.analyze(seq)
-    const ms = res.marketStructures
+    const ms = res.marketStructures || []
     expect(ms.length).toBeGreaterThan(0)
   })
 
@@ -95,7 +97,7 @@ describe('SMCAnalyzer', () => {
 
   it('detects BOS and CHOCH from synthetic structures', () => {
     const analyzer = new SMCAnalyzer()
-    const structures: MarketStructure[] = [
+    const structures: MarketStructurePoint[] = [
       { type: 'HH', price: 110, timestamp: 1, direction: 'bullish' },
       { type: 'HL', price: 105, timestamp: 2, direction: 'bullish' },
       { type: 'LL', price: 95, timestamp: 3, direction: 'bearish' },

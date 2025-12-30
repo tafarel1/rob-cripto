@@ -1,4 +1,4 @@
-import { RiskManagement, TradePosition, TradingSignal, MarketData } from '../../../shared/types';
+import { RiskManagement, TradePosition, TradingSignal, MarketData } from '../../../shared/types.js';
 
 export class RiskManager {
   private config: RiskManagement;
@@ -12,6 +12,42 @@ export class RiskManager {
     this.config = config;
     this.accountBalance = initialBalance;
     this.resetDailyLimits();
+  }
+
+  public getConfiguration(): RiskManagement {
+    return this.config;
+  }
+
+  public getAccountBalance(): number {
+    return this.accountBalance;
+  }
+
+  public getRiskStats(): import('../../../shared/types.js').RiskStats {
+    // Calculate risk exposure from open positions
+    const riskExposure = this.openPositions.reduce((total, position) => {
+      return total + (position.quantity * position.entryPrice);
+    }, 0);
+
+    // Calculate available risk budget
+    const maxDailyLossAmount = this.accountBalance * (this.config.maxDailyLoss / 100);
+    const availableRisk = Math.max(0, maxDailyLossAmount - this.dailyLoss);
+
+    return {
+      dailyLoss: this.dailyLoss,
+      currentDrawdown: 0, // Need to implement drawdown tracking
+      totalTrades: this.dailyTrades,
+      winRate: 0, // Need to implement trade history tracking for this
+      profitFactor: 0, // Need to implement trade history tracking for this
+      dailyTrades: this.dailyTrades,
+      maxDailyLossReached: this.maxDailyLossReached,
+      openPositions: this.openPositions.length,
+      maxPositions: this.config.maxPositions || 10,
+      accountBalance: this.accountBalance,
+      riskExposure: riskExposure,
+      availableRisk: availableRisk,
+      openPositionsRisk: riskExposure,
+      portfolioBeta: 0
+    };
   }
 
   /**
@@ -61,7 +97,7 @@ export class RiskManager {
     positionSize = Math.min(positionSize, maxPositionSize);
 
     // Verificar número máximo de posições
-    if (this.openPositions.length >= this.config.maxPositions) {
+    if (this.openPositions.length >= (this.config.maxPositions || 10)) {
       return 0;
     }
 
@@ -112,7 +148,7 @@ export class RiskManager {
     const reward = Math.abs(signal.takeProfit[0] - signal.entryPrice);
     const riskRewardRatio = reward / risk;
 
-    if (riskRewardRatio < this.config.riskRewardRatio) {
+    if (riskRewardRatio < (this.config.riskRewardRatio || 1.5)) {
       return {
         isValid: false,
         reason: `Risk-reward ratio ${riskRewardRatio.toFixed(2)} abaixo do mínimo ${this.config.riskRewardRatio}`
@@ -133,7 +169,7 @@ export class RiskManager {
 
     // Ajustar take profit para manter risk-reward ratio
     const newRisk = Math.abs(signal.entryPrice - adjustedStopLoss);
-    const requiredReward = newRisk * this.config.riskRewardRatio;
+    const requiredReward = newRisk * (this.config.riskRewardRatio || 1.5);
     
     adjustedTakeProfit[0] = signal.type === 'BUY'
       ? signal.entryPrice + requiredReward
@@ -154,7 +190,7 @@ export class RiskManager {
       return false;
     }
 
-    if (this.openPositions.length >= this.config.maxPositions) {
+    if (this.openPositions.length >= (this.config.maxPositions || 10)) {
       return false;
     }
 
@@ -196,8 +232,8 @@ export class RiskManager {
    */
   adjustStopLossToBreakEven(position: TradePosition, currentPrice: number): number {
     const breakEvenPrice = position.type === 'LONG' 
-      ? position.entryPrice + (position.fees / position.quantity)
-      : position.entryPrice - (position.fees / position.quantity);
+      ? position.entryPrice + ((position.fees || 0) / position.quantity)
+      : position.entryPrice - ((position.fees || 0) / position.quantity);
 
     // Só ajustar se estiver em profit suficiente
     const profitThreshold = position.entryPrice * 0.01; // 1% de profit
@@ -269,6 +305,7 @@ export class RiskManager {
     shouldExit: boolean;
     exitAmount: number;
     exitPrice: number;
+    levelIndex?: number;
   } {
     const currentProfit = position.type === 'LONG'
       ? (currentPrice - position.entryPrice) / position.entryPrice
@@ -284,7 +321,8 @@ export class RiskManager {
         return {
           shouldExit: true,
           exitAmount,
-          exitPrice: currentPrice
+          exitPrice: currentPrice,
+          levelIndex: i
         };
       }
     }
@@ -316,37 +354,7 @@ export class RiskManager {
     this.maxDailyLossReached = false;
   }
 
-  /**
-   * Obtém estatísticas de risco
-   */
-  getRiskStats(): {
-    dailyLoss: number;
-    dailyTrades: number;
-    maxDailyLossReached: boolean;
-    openPositions: number;
-    maxPositions: number;
-    accountBalance: number;
-    riskExposure: number;
-    availableRisk: number;
-  } {
-    const riskExposure = this.openPositions.reduce((total, position) => {
-      const positionValue = position.quantity * position.entryPrice;
-      return total + positionValue;
-    }, 0);
 
-    const availableRisk = Math.max(0, (this.accountBalance * (this.config.maxDailyLoss / 100)) - this.dailyLoss);
-
-    return {
-      dailyLoss: this.dailyLoss,
-      dailyTrades: this.dailyTrades,
-      maxDailyLossReached: this.maxDailyLossReached,
-      openPositions: this.openPositions.length,
-      maxPositions: this.config.maxPositions,
-      accountBalance: this.accountBalance,
-      riskExposure,
-      availableRisk
-    };
-  }
 
   /**
    * Atualiza saldo da conta

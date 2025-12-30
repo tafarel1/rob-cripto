@@ -1,6 +1,6 @@
 import TelegramBot from 'node-telegram-bot-api';
 import nodemailer from 'nodemailer';
-import { TradePosition, TradingSignal, SMCAnalysis } from '../../../shared/types';
+import { TradePosition, TradingSignal, SMCAnalysis } from '../../../shared/types.js';
 
 export class NotificationService {
   private telegramBot: { sendMessage: (chatId: string, message: string, options?: { parse_mode?: string; disable_web_page_preview?: boolean }) => Promise<unknown> } | null = null;
@@ -152,38 +152,32 @@ ${emoji} *${direction}*
 🔍 Zonas de Liquidez: ${analysis.liquidityZones.length}
 🧱 Order Blocks: ${analysis.orderBlocks.length}
 ⚡ Fair Value Gaps: ${analysis.fairValueGaps.length}
-📊 Estruturas de Mercado: ${analysis.marketStructures.length}
+📊 Estruturas de Mercado: ${analysis.marketStructures?.length || 0}
 
 ⚠️ *Importante:* Este é um sinal automático. Sempre faça sua própria análise!
     `;
   }
 
-  /**
-   * Formata mensagem de posição
-   */
   private formatPositionMessage(position: TradePosition, signal: TradingSignal): string {
     const emoji = position.type === 'LONG' ? '🟢' : '🔴';
-    const direction = position.type === 'LONG' ? 'LONG' : 'SHORT';
+    const direction = position.type === 'LONG' ? 'COMPRA (LONG)' : 'VENDA (SHORT)';
     
     return `
-🤖 *ROBO CRIPTO - POSIÇÃO ABERTA*
+🤖 *ROBO CRIPTO - NOVA POSIÇÃO*
 
 ${emoji} *${direction}*
 
 📊 *Detalhes da Posição:*
-📋 ID: \`${position.id}\`
-💰 Símbolo: ${position.symbol}
-💵 Preço de Entrada: $${position.entryPrice.toFixed(4)}
-📦 Quantidade: ${position.quantity.toFixed(6)}
+🆔 ID: ${position.id.substring(0, 8)}
+💰 Entrada: $${position.entryPrice.toFixed(4)}
+📦 Quantidade: ${position.quantity}
 🛑 Stop Loss: $${position.stopLoss.toFixed(4)}
-🎯 Take Profit: ${position.takeProfit.map((tp: number) => `$${tp.toFixed(4)}`).join(', ')}
-📈 Confiança do Sinal: ${(signal.confidence * 100).toFixed(1)}%
+🎯 Take Profit: ${position.takeProfit.map(tp => `$${tp.toFixed(4)}`).join(', ')}
+⏰ Posição aberta em: ${new Date(position.openTime || Date.now()).toLocaleString('pt-BR')}
+
+📈 *Sinal Original:*
+🔍 Confiança: ${(signal.confidence * 100).toFixed(1)}%
 📝 Razão: ${signal.reason}
-
-⏰ Posição aberta em: ${new Date(position.openTime).toLocaleString('pt-BR')}
-
-📊 *Gestão de Risco:*
-💡 Risk/Reward: 1:${((position.takeProfit[0] - position.entryPrice) / Math.abs(position.entryPrice - position.stopLoss)).toFixed(2)}
     `;
   }
 
@@ -191,28 +185,28 @@ ${emoji} *${direction}*
    * Formata mensagem de posição fechada
    */
   private formatPositionClosedMessage(position: TradePosition, reason: string): string {
-    const emoji = position.realizedPnl && position.realizedPnl > 0 ? '✅' : '❌';
-    const result = position.realizedPnl && position.realizedPnl > 0 ? 'GANHO' : 'PERDA';
-    const pnl = position.realizedPnl || 0;
+    const pnl = position.pnl || 0;
+    const emoji = pnl >= 0 ? '✅' : '❌';
+    const pnlPercent = ((pnl / (position.entryPrice * position.quantity)) * 100);
     
     return `
 🤖 *ROBO CRIPTO - POSIÇÃO FECHADA*
 
-${emoji} *${result}*
+${emoji} *Resultado: $${pnl.toFixed(4)} (${pnlPercent.toFixed(2)}%)*
 
 📊 *Detalhes do Fechamento:*
-📋 ID: \`${position.id}\`
-💰 Símbolo: ${position.symbol}
-💵 Preço de Entrada: $${position.entryPrice.toFixed(4)}
-💰 PnL Realizado: $${pnl.toFixed(4)}
-📊 Resultado: ${pnl > 0 ? '+' : ''}${((pnl / (position.entryPrice * position.quantity)) * 100).toFixed(2)}%
+🆔 ID: ${position.id.substring(0, 8)}
+💰 Preço Saída: $${(position.closePrice || 0).toFixed(4)}
+📦 Quantidade: ${position.quantity}
 📝 Motivo: ${reason}
+⏰ Tempo de Trade: ${this.formatDuration((position.closeTime || Date.now()) - (position.openTime || Date.now()))}
 
-⏰ Posição fechada em: ${position.closeTime ? new Date(position.closeTime).toLocaleString('pt-BR') : 'N/A'}
+💰 *Custos:*
+📊 Total de trades: ${(position.fees || 0) > 0 ? 'Com taxas' : 'Sem taxas'}
+💰 Taxas pagas: $${(position.fees || 0).toFixed(4)}
 
-📈 *Estatísticas:*
-📊 Total de trades: ${position.fees > 0 ? 'Com taxas' : 'Sem taxas'}
-💰 Taxas pagas: $${position.fees.toFixed(4)}
+⚖️ *Saldo Atualizado:*
+...
     `;
   }
 
@@ -284,9 +278,16 @@ ${emoji} *Resultado do Dia:*
   }
 
   /**
+   * Envia mensagem genérica (alias para sendTelegramMessage)
+   */
+  async send(message: string): Promise<void> {
+    await this.sendTelegramMessage(message);
+  }
+
+  /**
    * Envia mensagem via Telegram
    */
-  private async sendTelegramMessage(message: string): Promise<void> {
+  public async sendTelegramMessage(message: string): Promise<void> {
     if (!this.telegramBot || !this.telegramChatId) {
       return;
     }
@@ -370,5 +371,20 @@ ${emoji} *Resultado do Dia:*
     }
 
     return results;
+  }
+
+  /**
+   * Formata duração
+   */
+  private formatDuration(ms: number): string {
+    const seconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+
+    if (days > 0) return `${days}d ${hours % 24}h`;
+    if (hours > 0) return `${hours}h ${minutes % 60}m`;
+    if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
+    return `${seconds}s`;
   }
 }

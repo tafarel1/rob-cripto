@@ -1,14 +1,20 @@
 import { describe, it, expect } from 'vitest'
-import { RiskManager } from './riskManager'
-import type { RiskManagement, TradingSignal, TradePosition } from '../../../shared/types'
+import { RiskManager } from './riskManager.js'
+import type { RiskManagement, TradingSignal, TradePosition } from '../../../shared/types.js'
 
 const baseConfig: RiskManagement = {
-  maxRiskPerTrade: 2,
-  maxDailyLoss: 5,
+  maxRiskPerTrade: 1, // 1%
+  maxDailyLoss: 5, // 5%
   maxPositions: 5,
   riskRewardRatio: 2,
-  positionSizingMethod: 'fixed'
-}
+  positionSizingMethod: 'fixed',
+  maxDrawdown: 10,
+  maxPositionSize: 1000,
+  stopLossType: 'FIXED',
+  stopLossValue: 0.02,
+  takeProfitType: 'RISK_REWARD',
+  takeProfitValue: 0.04
+};
 
 const sampleSignal: TradingSignal = {
   type: 'BUY',
@@ -34,7 +40,8 @@ describe('RiskManager', () => {
       id: 'p1', symbol: 'BTC/USDT', type: 'LONG', entryPrice: 100, quantity: 1,
       stopLoss: 95, takeProfit: [110], status: 'OPEN', openTime: Date.now(), fees: 0
     }
-    for (let i = 0; i < baseConfig.maxPositions; i++) {
+    const maxPositions = baseConfig.maxPositions || 10;
+    for (let i = 0; i < maxPositions; i++) {
       rm.registerPosition({ ...pos, id: `p${i}` })
     }
     expect(rm.canTrade()).toBe(false)

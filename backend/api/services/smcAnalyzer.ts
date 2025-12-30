@@ -1,41 +1,154 @@
-import { MarketData, LiquidityZone, OrderBlock, FairValueGap, MarketStructure, SMCAnalysis, TradingSignal } from '../../../shared/types';
+import type { MarketData, LiquidityZone, OrderBlock, FairValueGap, MarketStructure, SMCAnalysis, TradingSignal, WashTradingActivity, PremiumDiscountZone, SessionLiquidity, MarketStructurePoint } from '../../../shared/types.js';
 
 export class SMCAnalyzer {
   private minLiquidityStrength: number = 0.7;
   private minOrderBlockStrength: number = 0.8;
   private minFvgSize: number = 0.002; // 0.2% minimum gap
+  private useVolumeConfirmation: boolean = true;
 
   constructor(config?: {
     minLiquidityStrength?: number;
     minOrderBlockStrength?: number;
     minFvgSize?: number;
+    useVolumeConfirmation?: boolean;
   }) {
     if (config) {
       this.minLiquidityStrength = config.minLiquidityStrength ?? this.minLiquidityStrength;
       this.minOrderBlockStrength = config.minOrderBlockStrength ?? this.minOrderBlockStrength;
       this.minFvgSize = config.minFvgSize ?? this.minFvgSize;
+      this.useVolumeConfirmation = config.useVolumeConfirmation ?? this.useVolumeConfirmation;
     }
   }
 
-  /**
-   * Análise completa do mercado usando Smart Money Concepts
-   */
-  analyze(data: MarketData[]): SMCAnalysis {
-    const liquidityZones = this.detectLiquidityZones(data);
-    const orderBlocks = this.detectOrderBlocks(data);
-    const fairValueGaps = this.detectFairValueGaps(data);
-    const marketStructures = this.detectMarketStructures(data);
-    const buySideLiquidity = this.detectBuySideLiquidity(data);
-    const sellSideLiquidity = this.detectSellSideLiquidity(data);
-
+  public analyze(data: MarketData[]): SMCAnalysis {
     return {
-      liquidityZones,
-      orderBlocks,
-      fairValueGaps,
-      marketStructures,
-      buySideLiquidity,
-      sellSideLiquidity
+      marketStructure: 'NEUTRAL',
+      orderBlocks: this.detectOrderBlocks(data),
+      liquidityZones: this.detectLiquidityZones(data),
+      fairValueGaps: this.detectFairValueGaps(data),
+      trend: 'SIDEWAYS',
+      marketStructures: this.detectMarketStructures(data),
+      buySideLiquidity: [],
+      sellSideLiquidity: [],
+      washTrading: this.detectWashTrading(data),
+      premiumDiscount: this.detectPremiumDiscountZones(data),
+      sessionLiquidity: this.detectSessionLiquidity(data)
     };
+  }
+
+  public analyzeMarketStructure(data: MarketData[]): SMCAnalysis {
+     return this.analyze(data);
+  }
+
+  /**
+   * Detecta Wash Trading e Anomalias de Volume
+   */
+  private detectWashTrading(data: MarketData[]): WashTradingActivity[] {
+    const suspiciousActivities: WashTradingActivity[] = [];
+    if (data.length < 20) return suspiciousActivities;
+    
+    const avgVolume = data.reduce((sum, c) => sum + c.volume, 0) / data.length;
+    const recentCandles = data.slice(-10);
+    
+    recentCandles.forEach(candle => {
+      // 1. Volume Spike (> 5x average)
+      if (candle.volume > avgVolume * 5) {
+        suspiciousActivities.push({
+          type: 'volume_spike',
+          timestamp: candle.timestamp,
+          details: `Volume ${Math.round(candle.volume / avgVolume)}x higher than average`,
+          severity: 'high'
+        });
+      }
+      
+      // 2. Doji com volume alto (Potencial churn/wash)
+      const bodySize = Math.abs(candle.open - candle.close);
+      const totalRange = candle.high - candle.low;
+      if (bodySize < totalRange * 0.1 && candle.volume > avgVolume * 2) {
+        suspiciousActivities.push({
+          type: 'high_vol_doji',
+          timestamp: candle.timestamp,
+          details: 'Indecisão extrema com alto volume (potencial churn)',
+          severity: 'medium'
+        });
+      }
+    });
+    
+    return suspiciousActivities;
+  }
+
+  /**
+   * Análise de Premium/Discount Zones
+   */
+  private detectPremiumDiscountZones(data: MarketData[], lookback: number = 50): PremiumDiscountZone | undefined {
+    const recentCandles = data.slice(-lookback);
+    let highestHigh = -Infinity;
+    let lowestLow = Infinity;
+    
+    recentCandles.forEach(c => {
+      if (c.high > highestHigh) highestHigh = c.high;
+      if (c.low < lowestLow) lowestLow = c.low;
+    });
+    
+    // Evitar infinito se array vazio
+    if (highestHigh === -Infinity || lowestLow === Infinity) return undefined;
+
+    const equilibrium = (highestHigh + lowestLow) / 2;
+    const currentPrice = data[data.length - 1].close;
+    
+    return {
+      high: highestHigh,
+      low: lowestLow,
+      equilibrium: equilibrium,
+      status: currentPrice > equilibrium ? 'PREMIUM' : 'DISCOUNT',
+      timestamp: data[data.length - 1].timestamp
+    };
+  }
+
+  /**
+   * Análise de Liquidez de Sessão (Highs/Lows Diários)
+   */
+  private detectSessionLiquidity(data: MarketData[]): SessionLiquidity | undefined {
+    if (!data.length) return undefined;
+
+    const lastTimestamp = data[data.length - 1].timestamp;
+    const oneDay = 24 * 60 * 60 * 1000;
+    // Filtrar velas das últimas 24h
+    const recentCandles = data.filter(c => c.timestamp > lastTimestamp - oneDay);
+
+    const sessions = {
+      asia: { high: -Infinity, low: Infinity, label: 'Asia' },
+      london: { high: -Infinity, low: Infinity, label: 'London' },
+      newYork: { high: -Infinity, low: Infinity, label: 'NY' }
+    };
+
+    recentCandles.forEach(c => {
+      const date = new Date(c.timestamp);
+      const hour = date.getUTCHours();
+      
+      // Asia: 00-08 UTC (Aprox)
+      if (hour >= 0 && hour < 8) {
+        if (c.high > sessions.asia.high) sessions.asia.high = c.high;
+        if (c.low < sessions.asia.low) sessions.asia.low = c.low;
+      }
+      // London: 08-16 UTC
+      if (hour >= 8 && hour < 16) {
+        if (c.high > sessions.london.high) sessions.london.high = c.high;
+        if (c.low < sessions.london.low) sessions.london.low = c.low;
+      }
+      // NY: 12-20 UTC (Overlap)
+      if (hour >= 12 && hour < 20) {
+        if (c.high > sessions.newYork.high) sessions.newYork.high = c.high;
+        if (c.low < sessions.newYork.low) sessions.newYork.low = c.low;
+      }
+    });
+
+    const result: SessionLiquidity = {};
+    if (sessions.asia.high > -Infinity) result.asia = sessions.asia;
+    if (sessions.london.high > -Infinity) result.london = sessions.london;
+    if (sessions.newYork.high > -Infinity) result.newYork = sessions.newYork;
+
+    return Object.keys(result).length > 0 ? result : undefined;
   }
 
   /**
@@ -119,6 +232,7 @@ export class SMCAnalyzer {
             top: prev1.low,
             bottom: prev2.high,
             midpoint: (prev1.low + prev2.high) / 2,
+            type: 'BULLISH',
             timestamp: prev1.timestamp,
             filled: false
           });
@@ -134,6 +248,7 @@ export class SMCAnalyzer {
             top: prev2.low,
             bottom: prev1.high,
             midpoint: (prev2.low + prev1.high) / 2,
+            type: 'BEARISH',
             timestamp: prev1.timestamp,
             filled: false
           });
@@ -147,8 +262,8 @@ export class SMCAnalyzer {
   /**
    * Detecta estruturas de mercado (HH, HL, LH, LL, BOS, CHOCH)
    */
-  private detectMarketStructures(data: MarketData[]): MarketStructure[] {
-    const structures: MarketStructure[] = [];
+  private detectMarketStructures(data: MarketData[]): MarketStructurePoint[] {
+    const structures: MarketStructurePoint[] = [];
     const swingPoints = this.findSwingPoints(data);
 
     for (let i = 1; i < swingPoints.length; i++) {
@@ -198,8 +313,8 @@ export class SMCAnalyzer {
   /**
    * Detecta Break of Structure (BOS) e Change of Character (CHOCH)
    */
-  private detectBOSAndCHOCH(structures: MarketStructure[]): MarketStructure[] {
-    const bosChoch: MarketStructure[] = [];
+  private detectBOSAndCHOCH(structures: MarketStructurePoint[]): MarketStructurePoint[] {
+    const bosChoch: MarketStructurePoint[] = [];
     let lastHigh = 0;
     let lastLow = Infinity;
     let prevDirection: 'bullish' | 'bearish' | null = null;
@@ -252,7 +367,7 @@ export class SMCAnalyzer {
         lastLow = structure.price;
         prevDirection = 'bearish';
       } else {
-        prevDirection = structure.direction;
+        prevDirection = structure.direction ?? null;
       }
     });
 
@@ -404,32 +519,76 @@ export class SMCAnalyzer {
 
   /**
    * Gera sinais de trading baseados na análise SMC
+   * @param data Optional recent market data for volume confirmation
    */
-  generateSignals(analysis: SMCAnalysis, currentPrice: number, timeframe: string): TradingSignal[] {
+  generateSignals(analysis: SMCAnalysis, currentPrice: number, timeframe: string, data?: MarketData[]): TradingSignal[] {
     const signals: TradingSignal[] = [];
+
+    // Volume Confirmation Logic
+    let volumeConfirmedBuy = true;
+    let volumeConfirmedSell = true;
+
+    if (this.useVolumeConfirmation && data && data.length > 20) {
+      volumeConfirmedBuy = this.checkVolumeConfirmation(data, 'buy');
+      volumeConfirmedSell = this.checkVolumeConfirmation(data, 'sell');
+    }
 
     // Sinal de compra: preço em zona de liquidez baixa + Order Block de alta
     const buySignal = this.checkBuySignal(analysis, currentPrice);
     if (buySignal) {
-      signals.push({
-        ...buySignal,
-        timeframe
-      });
+      if (volumeConfirmedBuy) {
+        signals.push({
+          ...buySignal,
+          timeframe,
+          reason: buySignal.reason + (this.useVolumeConfirmation ? ' + Vol Confirmed' : '')
+        });
+      }
     }
 
     // Sinal de venda: preço em zona de liquidez alta + Order Block de baixa
     const sellSignal = this.checkSellSignal(analysis, currentPrice);
     if (sellSignal) {
-      signals.push({
-        ...sellSignal,
-        timeframe
-      });
+      if (volumeConfirmedSell) {
+        signals.push({
+          ...sellSignal,
+          timeframe,
+          reason: sellSignal.reason + (this.useVolumeConfirmation ? ' + Vol Confirmed' : '')
+        });
+      }
     }
 
     return signals;
   }
 
-  debugBOSCHOCH(structures: MarketStructure[]): MarketStructure[] {
+  /**
+   * Checks for volume anomalies indicating institutional interest.
+   * Uses Relative Volume (RVOL) > 1.5 as a proxy.
+   */
+  private checkVolumeConfirmation(data: MarketData[], type: 'buy' | 'sell'): boolean {
+    const lookback = 20;
+    const recent = data.slice(-lookback);
+    const currentCandle = recent[recent.length - 1];
+    
+    // Calculate Average Volume
+    const avgVolume = recent.slice(0, -1).reduce((sum, c) => sum + c.volume, 0) / (lookback - 1);
+    const rvol = currentCandle.volume / avgVolume;
+
+    // Institutional footprint: High relative volume
+    if (rvol < 1.5) return false;
+
+    // Directional volume check
+    if (type === 'buy') {
+      // Expecting bullish candle or rejection candle with high volume
+      return currentCandle.close >= currentCandle.open || 
+             (currentCandle.close > currentCandle.low + (currentCandle.high - currentCandle.low) * 0.5);
+    } else {
+      // Expecting bearish candle or rejection candle with high volume
+      return currentCandle.close <= currentCandle.open || 
+             (currentCandle.close < currentCandle.high - (currentCandle.high - currentCandle.low) * 0.5);
+    }
+  }
+
+  debugBOSCHOCH(structures: MarketStructurePoint[]): MarketStructurePoint[] {
     return this.detectBOSAndCHOCH(structures);
   }
 

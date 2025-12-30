@@ -1,17 +1,17 @@
 import { Router, type Request, type Response } from 'express';
-import { TradingEngine } from '../services/tradingEngine';
-import { ExchangeService } from '../services/exchangeService';
-import { SMCAnalyzer } from '../services/smcAnalyzer';
-import { RiskManager } from '../services/riskManager';
-import { ApiResponse, StrategyConfig, ExchangeConfig, RiskManagement, RiskStats, TradePosition, SMCAnalysis, TradingSignal, MarketData } from '../../../shared/types';
+import { TradingEngine } from '../services/tradingEngine.js';
+import { ExchangeService } from '../services/exchangeService.js';
+import { RiskManager } from '../services/riskManager.js';
+import { SMCAnalyzer } from '../services/smcAnalyzer.js';
+import { ApiResponse, StrategyConfig, ExchangeConfig, RiskManagement, RiskStats, TradePosition, SMCAnalysis, TradingSignal, MarketData } from '../../../shared/types.js';
 
 const router = Router();
 
 // Instâncias dos serviços (serão inicializadas com configurações)
 let tradingEngine: TradingEngine | null = null;
 let exchangeService: ExchangeService | null = null;
-let smcAnalyzer: SMCAnalyzer | null = null;
 let riskManager: RiskManager | null = null;
+let smcAnalyzer: SMCAnalyzer | null = null;
 
 /**
  * Inicializa serviços com configurações
@@ -31,14 +31,20 @@ function initializeServices() {
     maxRiskPerTrade: 2, // 2% por trade
     maxDailyLoss: 5, // 5% por dia
     maxPositions: 5, // Máximo 5 posições simultâneas
+    maxDrawdown: 10,
+    maxPositionSize: 1000,
+    stopLossType: 'FIXED',
+    stopLossValue: 0.02,
+    takeProfitType: 'RISK_REWARD',
+    takeProfitValue: 0.04,
     riskRewardRatio: 2, // Mínimo 1:2
     positionSizingMethod: 'fixed'
   };
 
-  exchangeService = new ExchangeService(exchangeConfigs);
-  smcAnalyzer = new SMCAnalyzer();
-  riskManager = new RiskManager(riskConfig);
   tradingEngine = new TradingEngine(exchangeConfigs, riskConfig);
+  exchangeService = new ExchangeService(exchangeConfigs);
+  riskManager = new RiskManager(riskConfig);
+  smcAnalyzer = new SMCAnalyzer();
 }
 
 /**
@@ -51,7 +57,7 @@ router.get('/status', async (req: Request, res: Response) => {
       initializeServices();
     }
 
-    const stats = tradingEngine!.getStats();
+    const stats = await tradingEngine!.getStats();
     type StatusData = {
       status: 'running' | 'stopped';
       activeStrategies: number;

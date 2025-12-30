@@ -1,0 +1,33 @@
+{
+  "version": "1.0.0",
+  "environment": "development",
+  "services": [
+    {
+      "name": "backend",
+      "path": "backend",
+      "command": "npm start",
+      "port": 3001,
+      "healthUrl": "http://localhost:3001/api/health",
+      "required": true
+    },
+    {
+      "name": "frontend",
+      "path": "frontend",
+      "command": "npm run dev",
+      "port": 5173,
+      "healthUrl": "http://localhost:5173",
+      "required": true
+    }
+  ],
+  "requirements": {
+    "node": ">=18.0.0"
+  },
+  "update": {
+    "enabled": true,
+    "autoInstall": true
+  },
+  "logs": {
+    "enabled": true,
+    "path": "launcher/logs"
+  }
+}
