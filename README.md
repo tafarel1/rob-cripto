@@ -1,5 +1,11 @@
 # 🤖 Robô Cripto - Trading Automatizado com Smart Money Concepts
 
+![CI](https://github.com/tafarel1/rob-cripto/actions/workflows/ci.yml/badge.svg)
+![Quality](https://github.com/tafarel1/rob-cripto/actions/workflows/quality.yml/badge.svg)
+![CodeQL](https://github.com/tafarel1/rob-cripto/actions/workflows/codeql.yml/badge.svg)
+![License](https://img.shields.io/github/license/tafarel1/rob-cripto)
+![Version](https://img.shields.io/github/v/tag/tafarel1/rob-cripto?label=version&sort=semver)
+
 Uma aplicação completa de trading automatizado de criptomoedas baseada na estratégia Smart Money Concepts (SMC), com integração às principais exchanges e gestão de risco avançada.
 
 ## 🚀 Características Principais
@@ -92,6 +98,17 @@ npm run dev
 
 6. **Acesse o dashboard**
 Abra seu navegador em: http://localhost:5173
+
+## 🔀 Estrutura de Branches
+
+- `main`: branch protegida para releases estáveis
+- `develop`: integração contínua de funcionalidades
+- `feature/*`: desenvolvimento isolado por feature (ex.: `feature/virtual-mode`)
+
+Regras recomendadas de proteção em `main`:
+- Require pull request reviews
+- Require status checks (CI, Quality, CodeQL)
+- Include administrators
 
 ## ⚙️ Configuração
 
@@ -226,6 +243,12 @@ npm run test
 ### Build para Produção
 ```bash
 npm run build
+```
+
+### Publicar Release
+```bash
+git tag v1.1.0
+git push origin v1.1.0
 ```
 
 ## 📈 Performance e Métricas
